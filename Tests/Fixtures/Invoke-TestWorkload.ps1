@@ -7,6 +7,18 @@ try {
         'Throw' { throw 'terminating failure' }
         'NestedThrow' { throw [System.InvalidOperationException]::new('Operation could not complete.', [System.Exception]::new('Underlying detail.')) }
         'Error' { Write-Error 'nonterminating failure' -ErrorAction Continue }
+        { $_ -in @('MultipleErrors', 'ErrorsThenThrow', 'ErrorsIgnoreCancel') } {
+            Write-Error 'first item failed' -ErrorId 'FirstItem' -Category InvalidData -TargetObject 'item-1' -ErrorAction Continue
+            Start-Sleep -Milliseconds 400
+            Write-Error 'second item failed' -ErrorId 'SecondItem' -Category InvalidOperation -TargetObject 'item-2' -ErrorAction Continue
+            if ($Mode -eq 'ErrorsThenThrow') { throw 'terminal failure after item errors' }
+            $Metrics.ReachedEnd = $true
+        }
+        'ErrorActionStop' { Write-Error 'escalated failure' -ErrorAction Stop }
+        'CaughtError' {
+            try { Write-Error 'handled failure' -ErrorAction Stop }
+            catch { $Metrics.Handled = $true }
+        }
         'ErrorDetails' {
             $failure = [System.Management.Automation.ErrorRecord]::new([System.Exception]::new('Internal detail.'),
                 'TestFailure', [System.Management.Automation.ErrorCategory]::InvalidOperation, $null)
@@ -36,6 +48,9 @@ try {
     }
 }
 finally {
+    if ($Mode -eq 'MultipleErrors') {
+        Write-Error 'cleanup error' -ErrorId 'CleanupError' -TargetObject 'cleanup' -ErrorAction Continue
+    }
     Write-Progress -Id 1 -Activity 'Parent' -Completed
     $Metrics.Cleanup = $true
 }

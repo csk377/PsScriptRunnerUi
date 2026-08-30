@@ -34,6 +34,7 @@
                 <ComboBoxItem Content="Successful nested progress" Tag="Success" />
                 <ComboBoxItem Content="Confirm before starting" Tag="Confirmation" />
                 <ComboBoxItem Content="Deliberate failure" Tag="Failure" />
+                <ComboBoxItem Content="Complete with nonterminating errors" Tag="CompletedWithErrors" />
                 <ComboBoxItem Content="Long run for cancellation" Tag="Cancellation" />
                 <ComboBoxItem Content="Poorly written progress flood (5 seconds)" Tag="ProgressFlood" />
             </ComboBox>

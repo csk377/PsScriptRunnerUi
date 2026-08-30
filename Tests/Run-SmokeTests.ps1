@@ -30,7 +30,7 @@ $owner.Opacity = 0
 $owner.Show()
 $rows = [System.Collections.Generic.List[object]]::new()
 function Invoke-Scenario {
-    param([string] $Mode, [string] $Expected, [string] $CancelAction, [string] $ExpectedMessage)
+    param([string] $Mode, [string] $Expected, [string] $CancelAction, [string] $ExpectedMessage, [int] $ExpectedErrors = 0)
 
     $metrics = [hashtable]::Synchronized(@{})
     $probe = @{ Sent = $false; TerminalValues = $false; TerminalDetails = 'No completed dialog was observed.' }
@@ -51,6 +51,10 @@ function Invoke-Scenario {
                     $dialog.FindName('CloseButton').IsEnabled -and
                     $dialog.FindName('OverallActivity').Text -eq $Expected -and
                     (-not $ExpectedMessage -or $dialog.FindName('OverallStatus').Text -ceq $ExpectedMessage)
+                if ($Expected -eq 'CompletedWithErrors') {
+                    $probe.TerminalValues = $probe.TerminalValues -and
+                        $dialog.FindName('OverallPanel').Background.ToString() -eq '#FFFFF8DB'
+                }
                 $probe.TerminalDetails = 'Message={0}; Cancel={1}; CloseEnabled={2}; Activity={3}' -f `
                     $dialog.FindName('OverallStatus').Text, $dialog.FindName('CancelButton').Visibility,
                     $dialog.FindName('CloseButton').IsEnabled, $dialog.FindName('OverallActivity').Text
@@ -65,12 +69,34 @@ function Invoke-Scenario {
             -CloseOnSuccess:($Expected -ne 'Completed')
         Assert-True ($result.Status -eq $Expected) "$Mode expected $Expected, received $($result.Status)."
         Assert-True ($metrics.Cleanup -eq $true) "$Mode did not finish cleanup."
+        Assert-True ($result.ErrorCount -eq $ExpectedErrors -and $result.ErrorRecords.Count -eq $ExpectedErrors) "$Mode did not retain exactly $ExpectedErrors errors."
+        Assert-True ($result.ErrorRecords -is [System.Management.Automation.ErrorRecord[]]) "$Mode must return a typed array, including when empty."
         Assert-True $probe.TerminalValues "$Mode did not render its terminal display values correctly. $($probe.TerminalDetails)"
         if ($CancelAction) {
             Assert-True $result.CancellationWasRequested "$Mode lost its cancellation request."
             Assert-True $probe.CancelDisabled "$Mode kept Cancel enabled after a cancellation request."
         }
-        if ($Expected -eq 'Failed') { Assert-True ($null -ne $result.ErrorRecord) "$Mode lost its error record." }
+        if ($ExpectedErrors -gt 0) { Assert-True ($null -ne $result.ErrorRecord) "$Mode lost its error record." }
+        else { Assert-True ($null -eq $result.ErrorRecord) "$Mode unexpectedly returned an error." }
+        if ($Mode -in @('MultipleErrors', 'ErrorsThenThrow', 'ErrorsIgnoreCancel')) {
+            Assert-True ($result.ErrorRecords[0].TargetObject -eq 'item-1' -and
+                $result.ErrorRecords[1].TargetObject -eq 'item-2') "$Mode lost error ordering or target details."
+            Assert-True ($result.ErrorRecords[0].FullyQualifiedErrorId -match '^FirstItem' -and
+                $result.ErrorRecords[0].CategoryInfo.Category -eq 'InvalidData' -and
+                $result.ErrorRecords[0].InvocationInfo.ScriptLineNumber -gt 0 -and
+                -not [string]::IsNullOrWhiteSpace($result.ErrorRecords[0].ScriptStackTrace)) "$Mode lost structured error details."
+        }
+        if ($Mode -eq 'MultipleErrors') {
+            Assert-True ($metrics.ReachedEnd -and $result.ErrorRecords[2].TargetObject -eq 'cleanup') 'Normal completion must retain the final cleanup error.'
+        }
+        if ($Mode -eq 'ErrorsThenThrow') {
+            Assert-True ($result.ErrorRecords[2].Exception.Message -eq 'terminal failure after item errors' -and
+                $result.ErrorRecord -eq $result.ErrorRecords[2]) 'The terminal error must be retained once and selected for the failure summary.'
+        }
+        if ($Mode -eq 'ErrorDetails') {
+            Assert-True ($result.ErrorRecords[0].ErrorDetails.Message -eq 'Friendly failure message.') 'ErrorDetails were lost.'
+        }
+        if ($Mode -eq 'CaughtError') { Assert-True $metrics.Handled 'The script did not handle its error.' }
         if ($Mode -eq 'IgnoreCancel') { Assert-True $metrics.SawRequest 'The worker did not see the close request.' }
         if ($Mode -eq 'Location') { Assert-True ($metrics.Location -eq $PSScriptRoot) 'WorkingDirectory was not applied.' }
         $rows.Add([pscustomobject]@{ Scenario = $Mode; Status = $result.Status; ProgressRecords = $result.ProgressRecordsRead })
@@ -80,15 +106,21 @@ function Invoke-Scenario {
 
 try {
     Invoke-Scenario Success Completed
-    Invoke-Scenario Throw Failed -ExpectedMessage 'terminating failure'
-    Invoke-Scenario NestedThrow Failed -ExpectedMessage 'Operation could not complete.'
-    Invoke-Scenario Error Failed -ExpectedMessage 'nonterminating failure'
-    Invoke-Scenario ErrorDetails Failed -ExpectedMessage 'Friendly failure message.'
-    Invoke-Scenario ForeignCancellation Failed -ExpectedMessage 'not requested'
+    Invoke-Scenario Throw Failed -ExpectedMessage 'terminating failure' -ExpectedErrors 1
+    Invoke-Scenario NestedThrow Failed -ExpectedMessage 'Operation could not complete.' -ExpectedErrors 1
+    Invoke-Scenario Error CompletedWithErrors -ExpectedMessage 'Completed with 1 error(s).' -ExpectedErrors 1
+    Invoke-Scenario ErrorDetails CompletedWithErrors -ExpectedMessage 'Completed with 1 error(s).' -ExpectedErrors 1
+    Invoke-Scenario MultipleErrors CompletedWithErrors -ExpectedMessage 'Completed with 3 error(s).' -ExpectedErrors 3
+    Invoke-Scenario ErrorsThenThrow Failed -ExpectedMessage 'terminal failure after item errors' -ExpectedErrors 3
+    Invoke-Scenario ErrorActionStop Failed -ExpectedMessage 'escalated failure' -ExpectedErrors 1
+    Invoke-Scenario CaughtError Completed
+    Invoke-Scenario ErrorsIgnoreCancel CompletedWithErrors -CancelAction Button -ExpectedErrors 2 `
+        -ExpectedMessage 'Completed with 2 error(s). Cancellation was requested, but the script completed normally.'
+    Invoke-Scenario ForeignCancellation Failed -ExpectedMessage 'not requested' -ExpectedErrors 1
     Invoke-Scenario Cancel Cancelled -CancelAction Button
     Invoke-Scenario Cancel Cancelled -CancelAction Close
     Invoke-Scenario IgnoreCancel Completed -CancelAction Close
-    Invoke-Scenario ErrorThenCancel Failed -CancelAction Button -ExpectedMessage 'error before cancellation'
+    Invoke-Scenario ErrorThenCancel Failed -CancelAction Button -ExpectedMessage 'error before cancellation' -ExpectedErrors 1
     Invoke-Scenario Location Completed
     # No observer closes this dialog: success must autoclose after the final drain.
     $metrics = [hashtable]::Synchronized(@{})

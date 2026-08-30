@@ -68,7 +68,20 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'PsScriptRunnerUi.ps
 
     $pipeline = [powershell]::Create()
     try {
-        $state = @{ Progress = @{}; ProgressRecordsRead = 0L; Result = $null }
+        $state = @{
+            Progress = @{}; ProgressRecordsRead = 0L; Result = $null
+            ErrorRecords = [System.Collections.Generic.List[System.Management.Automation.ErrorRecord]]::new()
+        }
+        $failure = [System.Management.Automation.ErrorRecord]::new([System.Exception]::new('first'),
+            'First', [System.Management.Automation.ErrorCategory]::InvalidData, 'item-1')
+        $pipeline.Streams.Error.Add($failure)
+        Assert-True (-not (Receive-ScriptProgress $pipeline $state $false)) 'An error-only poll must not refresh progress.'
+        Assert-True ($pipeline.Streams.Error.Count -eq 0 -and $state.ErrorRecords.Count -eq 1 -and
+            [object]::ReferenceEquals($state.ErrorRecords[0], $failure)) 'Draining errors must retain the full original record.'
+        $pipeline.Streams.Error.Add($failure)
+        [void] (Receive-ScriptProgress $pipeline $state $false)
+        [void] (Receive-ScriptProgress $pipeline $state $false)
+        Assert-True ($state.ErrorRecords.Count -eq 2) 'Repeated emissions must be retained, but empty polls must not duplicate errors.'
         $pipeline.Streams.Information.Add([System.Management.Automation.InformationRecord]::new('discarded message', 'test'))
         Assert-True (-not (Receive-ScriptProgress $pipeline $state $false)) 'An information-only poll must not request a display refresh.'
         Assert-True ($pipeline.Streams.Information.Count -eq 0) 'An idle poll must still discard information when capture is disabled.'

@@ -37,6 +37,7 @@ $runButton.add_Click({
         StepsPerItem = 12
         DelayMilliseconds = 40
         FailAtItem = if ($scenario -eq 'Failure') { 2 } else { 0 }
+        EmitErrors = $scenario -eq 'CompletedWithErrors'
     }
 
     if ($scenario -eq 'Cancellation') {
@@ -66,10 +67,11 @@ $runButton.add_Click({
             $resultText.Text = 'The dialog closed without a result.'
         }
         else {
-            $resultText.Text = 'Status: {0}; duration: {1:n1}s; cancellation requested: {2}' -f `
+            $resultText.Text = 'Status: {0}; duration: {1:n1}s; cancellation requested: {2}; errors: {3}' -f `
                 $result.Status,
                 $result.Duration.TotalSeconds,
-                $result.CancellationWasRequested
+                $result.CancellationWasRequested,
+                $result.ErrorCount
         }
     }
     catch {

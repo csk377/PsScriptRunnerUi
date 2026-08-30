@@ -10,7 +10,9 @@ param(
     [int] $DelayMilliseconds = 75,
 
     [ValidateRange(0, 100)]
-    [int] $FailAtItem = 0
+    [int] $FailAtItem = 0,
+
+    [switch] $EmitErrors
 )
 
 Set-StrictMode -Version 2.0
@@ -51,6 +53,11 @@ try {
 
         Write-Progress -Id 2 -ParentId 1 -Activity "Work item $itemIndex" -Completed
         Write-Host "Work item $itemIndex completed."
+
+        if ($EmitErrors -and $itemIndex % 2 -eq 0) {
+            Write-Error "Deliberate nonterminating error for work item $itemIndex." `
+                -ErrorId 'DemoItemError' -TargetObject $itemIndex -ErrorAction Continue
+        }
 
         if ($FailAtItem -eq $itemIndex) {
             throw "Deliberate failure after work item $itemIndex."

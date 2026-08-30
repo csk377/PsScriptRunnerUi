@@ -39,7 +39,7 @@ function Show-ScriptOutcome {
     $Controls.Parent.Status.Text = $Message
     $colors = switch ($Status) {
         'Completed' { @('#EDF8EE', '#B7DABC', '#245D32') }
-        'Cancelled' {
+        { $_ -in @('Cancelled', 'CompletedWithErrors') } {
             $Controls.Parent.Bar.Foreground = '#D1A522'
             @('#FFF8DB', '#E5CE80', '#705A16')
         }
@@ -55,10 +55,41 @@ function Show-ScriptOutcome {
 }
 
 function New-ScriptOutcome {
-    param($Pipeline, $Context, $EndError, [timespan] $Duration, [long] $ProgressRecordsRead)
+    param($Pipeline, $Context, $EndError, $ErrorRecords, [timespan] $Duration, [long] $ProgressRecordsRead)
 
-    $errorRecord = if ($Pipeline.Streams.Error.Count -gt 0) { $Pipeline.Streams.Error[0] } else { $EndError }
-    $status = if ($null -ne $errorRecord) { 'Failed' } elseif ($Context.Cancelled) { 'Cancelled' } else { 'Completed' }
+    # Terminating errors can be reported only by EndInvoke, not by the error stream.
+    # Prefer the original record over the method-call wrapper created by EndInvoke.
+    $terminatingError = $null
+    if ($null -ne $EndError -or $Pipeline.InvocationStateInfo.State -eq 'Failed') {
+        $reason = $Pipeline.InvocationStateInfo.Reason
+        if ($reason -is [System.Management.Automation.IContainsErrorRecord]) {
+            $terminatingError = $reason.ErrorRecord
+        }
+        elseif ($null -ne $reason) {
+            $terminatingError = [System.Management.Automation.ErrorRecord]::new(
+                $reason, 'ScriptTerminatingError', [System.Management.Automation.ErrorCategory]::NotSpecified, $null)
+        }
+        else { $terminatingError = $EndError }
+
+        # Do not duplicate a terminal record already delivered by the stream.
+        $alreadyRecorded = $false
+        foreach ($record in $ErrorRecords) {
+            if ([object]::ReferenceEquals($record, $terminatingError) -or
+                [object]::ReferenceEquals($record.Exception, $terminatingError.Exception)) {
+                $alreadyRecorded = $true
+                break
+            }
+        }
+        if (-not $alreadyRecorded) { $ErrorRecords.Add($terminatingError) }
+    }
+
+    $errorRecord = if ($null -ne $terminatingError) { $terminatingError }
+        elseif ($ErrorRecords.Count -gt 0) { $ErrorRecords[0] } else { $null }
+    $status = if ($null -ne $terminatingError) { 'Failed' }
+        elseif ($Context.Cancelled -and $ErrorRecords.Count -gt 0) { 'Failed' }
+        elseif ($Context.Cancelled) { 'Cancelled' }
+        elseif ($ErrorRecords.Count -gt 0) { 'CompletedWithErrors' }
+        else { 'Completed' }
     $cancellationWasRequested = $Context.Cancellation.IsCancellationRequested
     $message = switch ($status) {
         'Completed' {
@@ -66,12 +97,13 @@ function New-ScriptOutcome {
             else { 'Completed successfully.' }
         }
         'Cancelled' { 'Cancelled after script cleanup completed.' }
+        'CompletedWithErrors' {
+            $summary = 'Completed with {0} error(s).' -f $ErrorRecords.Count
+            if ($cancellationWasRequested) { $summary += ' Cancellation was requested, but the script completed normally.' }
+            $summary
+        }
         'Failed' {
             $exception = $errorRecord.Exception
-            # EndInvoke adds a method-call wrapper; the worker keeps the original exception.
-            if ($errorRecord -eq $EndError -and $null -ne $Pipeline.InvocationStateInfo.Reason) {
-                $exception = $Pipeline.InvocationStateInfo.Reason
-            }
             if ($null -ne $errorRecord.ErrorDetails -and
                 -not [string]::IsNullOrWhiteSpace($errorRecord.ErrorDetails.Message)) {
                 $errorRecord.ErrorDetails.Message
@@ -85,6 +117,8 @@ function New-ScriptOutcome {
             Duration = $Duration
             CancellationWasRequested = $cancellationWasRequested
             ErrorRecord = $errorRecord
+            ErrorRecords = $ErrorRecords.ToArray()
+            ErrorCount = $ErrorRecords.Count
             ProgressRecordsRead = $ProgressRecordsRead
         }
         Message = $message
@@ -118,6 +152,9 @@ function Receive-ScriptProgress {
 
     $batch = $Pipeline.Streams.Progress.ReadAll()
     if ($batch.Count -gt 0) { Update-ScriptProgressState $State $batch }
+    foreach ($record in $Pipeline.Streams.Error.ReadAll()) {
+        $State.ErrorRecords.Add($record)
+    }
     foreach ($record in $Pipeline.Streams.Information.ReadAll()) {
         if ($CaptureHostOutput) { Write-Host ([string] $record.MessageData) }
     }
@@ -207,7 +244,10 @@ function Invoke-UiScript {
     $cancellation = [System.Threading.CancellationTokenSource]::new()
     $context = [hashtable]::Synchronized(@{ Cancellation = $cancellation; Cancelled = $false })
     # All state below belongs to the UI thread; only context is shared with the worker.
-    $state = @{ Progress = @{}; ProgressRecordsRead = 0L; Result = $null; Ended = $false; Fault = $null }
+    $state = @{
+        Progress = @{}; ProgressRecordsRead = 0L; Result = $null; Ended = $false; Fault = $null
+        ErrorRecords = [System.Collections.Generic.List[System.Management.Automation.ErrorRecord]]::new()
+    }
     $runspace = $null
     $pipeline = $null
     $async = $null
@@ -269,6 +309,7 @@ function Invoke-UiScript {
                 $timer.Stop()
                 $clock.Stop()
                 $outcome = New-ScriptOutcome -Pipeline $pipeline -Context $context -EndError $endError `
+                    -ErrorRecords $state.ErrorRecords `
                     -Duration $clock.Elapsed -ProgressRecordsRead $state.ProgressRecordsRead
                 $state.Result = $outcome.Result
                 Show-ScriptOutcome $controls $state.Result.Status $outcome.Message

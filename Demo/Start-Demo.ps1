@@ -14,14 +14,8 @@ Add-Type -AssemblyName PresentationCore
 $modulePath = Join-Path $PSScriptRoot '..\PsScriptRunnerUi.psd1'
 Import-Module $modulePath -Force
 
-[xml] $xaml = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'MainWindow.xaml') -Raw -Encoding UTF8
-$reader = [System.Xml.XmlNodeReader]::new($xaml)
-try {
-    $window = [System.Windows.Markup.XamlReader]::Load($reader)
-}
-finally {
-    $reader.Dispose()
-}
+$xaml = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'MainWindow.xaml') -Raw -Encoding UTF8
+$window = [System.Windows.Markup.XamlReader]::Parse($xaml)
 
 $scenarioBox = $window.FindName('ScenarioBox')
 $closeOnSuccessBox = $window.FindName('CloseOnSuccessBox')

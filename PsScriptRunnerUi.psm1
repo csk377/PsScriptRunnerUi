@@ -138,10 +138,9 @@ function Invoke-UiScript {
     }
 
     Add-Type -AssemblyName PresentationFramework -ErrorAction Stop
-    [xml] $xaml = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'Xaml\ProgressWindow.xaml') -Raw
-    $reader = [System.Xml.XmlNodeReader]::new($xaml)
-    try { $window = [System.Windows.Markup.XamlReader]::Load($reader) }
-    finally { $reader.Dispose() }
+    $xaml = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'Xaml\ProgressWindow.xaml') -Raw
+    $window = [System.Windows.Markup.XamlReader]::Parse($xaml)
+    
     if ($null -ne $Owner) { $window.Owner = $Owner }
     $window.FindName('HeadingText').Text = $HeadingText
     $controls = @{

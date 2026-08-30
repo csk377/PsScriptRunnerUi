@@ -1,0 +1,60 @@
+<Window
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="PsScriptRunnerUi demo"
+    Width="720"
+    Height="500"
+    MinWidth="600"
+    MinHeight="440"
+    WindowStartupLocation="CenterScreen"
+    Background="#F3F6FA"
+    FontFamily="Segoe UI">
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="PowerShell WPF script runner" FontSize="27" FontWeight="SemiBold" Foreground="#172033" />
+            <TextBlock Margin="0,6,0,0" Foreground="#5E6878" TextWrapping="Wrap" Text="Run an ordinary PowerShell script on a worker runspace while a modal WPF dialog reports parent and child progress." />
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="0,26,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="170" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Demo scenario" VerticalAlignment="Center" FontWeight="SemiBold" />
+            <ComboBox x:Name="ScenarioBox" Grid.Column="1" SelectedIndex="0" Padding="6">
+                <ComboBoxItem Content="Successful nested progress" Tag="Success" />
+                <ComboBoxItem Content="Confirm before starting" Tag="Confirmation" />
+                <ComboBoxItem Content="Deliberate failure" Tag="Failure" />
+                <ComboBoxItem Content="Long run for cancellation" Tag="Cancellation" />
+                <ComboBoxItem Content="Poorly written progress flood (5 seconds)" Tag="ProgressFlood" />
+            </ComboBox>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Margin="170,18,0,0">
+            <CheckBox x:Name="CloseOnSuccessBox" Content="Close progress dialog automatically on success" IsChecked="False" />
+            <CheckBox x:Name="CaptureHostBox" Content="Forward Write-Host output to this terminal" IsChecked="False" Margin="0,10,0,0" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="3" Margin="0,26,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="RunButton" Content="Run demo" Padding="20,9" MinWidth="120" IsDefault="True" />
+        </StackPanel>
+
+        <Border Grid.Row="4" Margin="0,24,0,0" Padding="18" Background="White" BorderBrush="#D9E0E8" BorderThickness="1" CornerRadius="8">
+            <StackPanel>
+                <TextBlock Text="Last result" FontWeight="SemiBold" Foreground="#172033" />
+                <TextBlock x:Name="ResultText" Text="No script has been run yet." Margin="0,7,0,0" Foreground="#5E6878" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+
+        <TextBlock Grid.Row="5" Margin="0,18,0,0" Foreground="#778294" FontSize="12" Text="Tip: choose the long run, then close the progress dialog or click Cancel to test cooperative cancellation." />
+    </Grid>
+</Window>

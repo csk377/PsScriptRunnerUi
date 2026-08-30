@@ -29,22 +29,66 @@ function Update-ProgressControls {
 function Show-ScriptOutcome {
     param($Controls, [string] $Status, [string] $Message)
 
+    $Controls.CancelButton.Visibility = 'Collapsed'
+    $Controls.CloseButton.Visibility = 'Visible'
+    $Controls.CloseButton.IsEnabled = $true
     $Controls.ChildPanel.Visibility = 'Collapsed'
     $Controls.Parent.Bar.IsIndeterminate = $false
     $Controls.Parent.Bar.Value = 100
-    if ($Status -eq 'Cancelled') { $Controls.Parent.Bar.Foreground = '#D1A522' }
-    elseif ($Status -eq 'Failed') { $Controls.Parent.Bar.Foreground = '#C34444' }
     $Controls.Parent.Activity.Text = $Status
     $Controls.Parent.Status.Text = $Message
     $colors = switch ($Status) {
         'Completed' { @('#EDF8EE', '#B7DABC', '#245D32') }
-        'Cancelled' { @('#FFF8DB', '#E5CE80', '#705A16') }
-        'Failed' { @('#FDECEC', '#E7BABA', '#702828') }
+        'Cancelled' {
+            $Controls.Parent.Bar.Foreground = '#D1A522'
+            @('#FFF8DB', '#E5CE80', '#705A16')
+        }
+        'Failed' {
+            $Controls.Parent.Bar.Foreground = '#C34444'
+            @('#FDECEC', '#E7BABA', '#702828')
+        }
     }
     $Controls.Parent.Panel.Background = $colors[0]
     $Controls.Parent.Panel.BorderBrush = $colors[1]
     $Controls.Parent.Activity.Foreground = $colors[2]
     $Controls.Parent.Status.Foreground = $colors[2]
+}
+
+function New-ScriptOutcome {
+    param($Pipeline, $Context, $EndError, [timespan] $Duration, [long] $ProgressRecordsRead)
+
+    $errorRecord = if ($Pipeline.Streams.Error.Count -gt 0) { $Pipeline.Streams.Error[0] } else { $EndError }
+    $status = if ($null -ne $errorRecord) { 'Failed' } elseif ($Context.Cancelled) { 'Cancelled' } else { 'Completed' }
+    $cancellationWasRequested = $Context.Cancellation.IsCancellationRequested
+    $message = switch ($status) {
+        'Completed' {
+            if ($cancellationWasRequested) { 'Completed normally after a cancellation request.' }
+            else { 'Completed successfully.' }
+        }
+        'Cancelled' { 'Cancelled after script cleanup completed.' }
+        'Failed' {
+            $exception = $errorRecord.Exception
+            # EndInvoke adds a method-call wrapper; the worker keeps the original exception.
+            if ($errorRecord -eq $EndError -and $null -ne $Pipeline.InvocationStateInfo.Reason) {
+                $exception = $Pipeline.InvocationStateInfo.Reason
+            }
+            if ($null -ne $errorRecord.ErrorDetails -and
+                -not [string]::IsNullOrWhiteSpace($errorRecord.ErrorDetails.Message)) {
+                $errorRecord.ErrorDetails.Message
+            } else { $exception.Message }
+        }
+    }
+
+    [pscustomobject]@{
+        Result = [pscustomobject]@{
+            Status = $status
+            Duration = $Duration
+            CancellationWasRequested = $cancellationWasRequested
+            ErrorRecord = $errorRecord
+            ProgressRecordsRead = $ProgressRecordsRead
+        }
+        Message = $message
+    }
 }
 
 function Update-ScriptProgressState {
@@ -140,7 +184,7 @@ function Invoke-UiScript {
     Add-Type -AssemblyName PresentationFramework -ErrorAction Stop
     $xaml = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'Xaml\ProgressWindow.xaml') -Raw
     $window = [System.Windows.Markup.XamlReader]::Parse($xaml)
-    
+
     if ($null -ne $Owner) { $window.Owner = $Owner }
     $window.FindName('HeadingText').Text = $HeadingText
     $controls = @{
@@ -224,39 +268,11 @@ function Invoke-UiScript {
 
                 $timer.Stop()
                 $clock.Stop()
-                $errorRecord = if ($pipeline.Streams.Error.Count -gt 0) { $pipeline.Streams.Error[0] } else { $endError }
-                $status = if ($null -ne $errorRecord) { 'Failed' } elseif ($context.Cancelled) { 'Cancelled' } else { 'Completed' }
-                $state.Result = [pscustomobject]@{
-                    Status = $status
-                    Duration = $clock.Elapsed
-                    CancellationWasRequested = $cancellation.IsCancellationRequested
-                    ErrorRecord = $errorRecord
-                    ProgressRecordsRead = $state.ProgressRecordsRead
-                }
-                $controls.CancelButton.Visibility = 'Collapsed'
-                $controls.CloseButton.Visibility = 'Visible'
-                $controls.CloseButton.IsEnabled = $true
-                switch ($status) {
-                    'Completed' {
-                        $message = if ($cancellation.IsCancellationRequested) {
-                            'Completed normally after a cancellation request.'
-                        } else { 'Completed successfully.' }
-                    }
-                    'Cancelled' { $message = 'Cancelled after script cleanup completed.' }
-                    'Failed' {
-                        $exception = $errorRecord.Exception
-                        # EndInvoke adds a method-call wrapper; the worker keeps the original exception.
-                        if ($errorRecord -eq $endError -and $null -ne $pipeline.InvocationStateInfo.Reason) {
-                            $exception = $pipeline.InvocationStateInfo.Reason
-                        }
-                        $message = if ($null -ne $errorRecord.ErrorDetails -and
-                            -not [string]::IsNullOrWhiteSpace($errorRecord.ErrorDetails.Message)) {
-                            $errorRecord.ErrorDetails.Message
-                        } else { $exception.Message }
-                    }
-                }
-                Show-ScriptOutcome $controls $status $message
-                if ($status -eq 'Completed' -and $CloseOnSuccess) { $window.Close() }
+                $outcome = New-ScriptOutcome -Pipeline $pipeline -Context $context -EndError $endError `
+                    -Duration $clock.Elapsed -ProgressRecordsRead $state.ProgressRecordsRead
+                $state.Result = $outcome.Result
+                Show-ScriptOutcome $controls $state.Result.Status $outcome.Message
+                if ($state.Result.Status -eq 'Completed' -and $CloseOnSuccess) { $window.Close() }
             }
             catch {
                 # Stop dispatching a broken UI callback; the finally block waits for cooperative cleanup.

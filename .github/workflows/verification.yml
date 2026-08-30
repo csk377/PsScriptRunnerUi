@@ -1,0 +1,29 @@
+name: Verification
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Static Checks
+        shell: powershell
+        run: .\Tests\Run-StaticChecks.ps1
+
+      - name: Run Progress State Tests
+        shell: powershell
+        run: .\Tests\Run-ProgressStateTests.ps1
+
+      - name: Run Smoke Tests
+        shell: powershell
+        run: .\Tests\Run-SmokeTests.ps1

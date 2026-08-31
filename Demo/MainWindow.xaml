@@ -3,9 +3,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="PsScriptRunnerUi demo"
     Width="720"
-    Height="500"
+    Height="580"
     MinWidth="600"
-    MinHeight="440"
+    MinHeight="540"
     WindowStartupLocation="CenterScreen"
     Background="#F3F6FA"
     FontFamily="Segoe UI">
@@ -41,6 +41,18 @@
         </Grid>
 
         <StackPanel Grid.Row="2" Margin="170,18,0,0">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                <TextBlock Text="Output level" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <ComboBox x:Name="OutputLevelBox" SelectedIndex="0" MinWidth="120" Padding="4">
+                    <ComboBoxItem Content="None" />
+                    <ComboBoxItem Content="Error" />
+                    <ComboBoxItem Content="Warn" />
+                    <ComboBoxItem Content="Info" />
+                    <ComboBoxItem Content="Verbose" />
+                    <ComboBoxItem Content="Debug" />
+                </ComboBox>
+            </StackPanel>
+            <CheckBox x:Name="ShowOutputBox" Content="Show success output (returned data)" IsChecked="False" Margin="0,0,0,10" />
             <CheckBox x:Name="CloseOnSuccessBox" Content="Close progress dialog automatically on success" IsChecked="False" />
             <CheckBox x:Name="CaptureHostBox" Content="Forward Write-Host output to this terminal" IsChecked="False" Margin="0,10,0,0" />
         </StackPanel>

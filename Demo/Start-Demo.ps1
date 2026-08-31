@@ -20,6 +20,8 @@ $window = [System.Windows.Markup.XamlReader]::Parse($xaml)
 $scenarioBox = $window.FindName('ScenarioBox')
 $closeOnSuccessBox = $window.FindName('CloseOnSuccessBox')
 $captureHostBox = $window.FindName('CaptureHostBox')
+$outputLevelBox = $window.FindName('OutputLevelBox')
+$showOutputBox = $window.FindName('ShowOutputBox')
 $runButton = $window.FindName('RunButton')
 $resultText = $window.FindName('ResultText')
 $demoScript = Join-Path $PSScriptRoot 'Scripts\Invoke-NestedProgressDemo.ps1'
@@ -60,6 +62,8 @@ $runButton.add_Click({
             -HeadingText $headingText `
             -Parameters $parameters `
             -CaptureHostOutput:([bool] $captureHostBox.IsChecked) `
+            -OutputLevel $outputLevelBox.SelectedItem.Content.ToString() `
+            -ShowOutput:([bool] $showOutputBox.IsChecked) `
             -Owner $window `
             -CloseOnSuccess:([bool] $closeOnSuccessBox.IsChecked)
 

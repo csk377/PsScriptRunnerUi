@@ -29,6 +29,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <TextBlock x:Name="HeadingText" Grid.Row="0" FontSize="22" FontWeight="SemiBold" Foreground="#172033" TextWrapping="Wrap" />
@@ -49,7 +50,17 @@
             </StackPanel>
         </Border>
 
-        <StackPanel Grid.Row="3" Margin="0,20,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel x:Name="OutputPanel" Grid.Row="3" Margin="0,16,0,0" Visibility="Collapsed">
+            <TextBlock Text="Script output" FontWeight="SemiBold" Foreground="#172033" Margin="0,0,0,6" />
+            <TextBox x:Name="OutputText" Height="200" IsReadOnly="True" AcceptsReturn="True"
+                     FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap" Padding="8"
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                     Background="White" BorderBrush="#D9E0E8" />
+            <TextBlock x:Name="OutputTruncation" Text="Older output removed; showing the latest 65,536 characters."
+                       Visibility="Collapsed" Foreground="#705A16" FontSize="11" Margin="0,4,0,0" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="4" Margin="0,20,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button x:Name="CancelButton" Content="Cancel" IsCancel="False" />
             <Button x:Name="CloseButton" Content="Close" IsDefault="True" Visibility="Collapsed" IsEnabled="False" />
         </StackPanel>

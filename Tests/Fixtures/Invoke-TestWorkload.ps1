@@ -3,6 +3,22 @@ param([string] $Mode = 'Success', [hashtable] $Metrics = @{}, [int] $ProgressUpd
 $ErrorActionPreference = 'Stop'
 try {
     switch ($Mode) {
+        { $_ -in @('AllStreams', 'SuppressDiagnostics', 'OutputFlood') } {
+            if ($Mode -eq 'SuppressDiagnostics') {
+                $InformationPreference = 'Ignore'
+                $VerbosePreference = 'SilentlyContinue'
+                $DebugPreference = 'SilentlyContinue'
+            }
+            Write-Error 'error-stream' -ErrorAction Continue
+            Write-Warning 'warning-stream'
+            Write-Information 'information-stream'
+            Write-Host 'host-stream'
+            Write-Verbose 'verbose-stream'
+            Write-Debug 'debug-stream'
+            [pscustomobject]@{ ResultName = 'success-stream' }
+            if ($Mode -eq 'OutputFlood') { 'x' * 70000 }
+            Start-Sleep -Milliseconds 400
+        }
         'Success' { 'discarded success output' }
         'Throw' { throw 'terminating failure' }
         'NestedThrow' { throw [System.InvalidOperationException]::new('Operation could not complete.', [System.Exception]::new('Underlying detail.')) }
@@ -36,7 +52,8 @@ try {
             Start-Sleep -Milliseconds 400
             $Metrics.SawRequest = Test-ScriptCancellationRequested
         }
-        { $_ -in @('Cancel', 'ErrorThenCancel') } {
+        { $_ -in @('Cancel', 'ErrorThenCancel', 'OutputCancel') } {
+            if ($Mode -eq 'OutputCancel') { Write-Information 'before-cancellation' }
             if ($Mode -eq 'ErrorThenCancel') { Write-Error 'error before cancellation' -ErrorAction Continue }
             $deadline = [datetime]::UtcNow.AddSeconds(3)
             while ([datetime]::UtcNow -lt $deadline) {
@@ -48,6 +65,10 @@ try {
     }
 }
 finally {
+    if ($Mode -in @('AllStreams', 'SuppressDiagnostics', 'OutputFlood', 'OutputCancel')) {
+        Write-Information 'final-information'
+        'final-success'
+    }
     if ($Mode -eq 'MultipleErrors') {
         Write-Error 'cleanup error' -ErrorId 'CleanupError' -TargetObject 'cleanup' -ErrorAction Continue
     }

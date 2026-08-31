@@ -23,10 +23,14 @@ if (-not (Get-Command Assert-ScriptNotCancelled -ErrorAction SilentlyContinue)) 
 }
 
 Write-Host "Starting simulated work across $ItemCount work items."
+Write-Information 'This is a simulated workload; no files are changed.'
+Write-Warning 'Demo warning: processing will continue.'
 
 try {
     for ($itemIndex = 1; $itemIndex -le $ItemCount; $itemIndex++) {
         Assert-ScriptNotCancelled
+        Write-Verbose "Starting work item $itemIndex of $ItemCount."
+        Write-Debug "Item settings: steps=$StepsPerItem; delay=$DelayMilliseconds ms."
 
         $overallPercent = [math]::Floor((($itemIndex - 1) / $ItemCount) * 100)
         Write-Progress `
@@ -62,6 +66,7 @@ try {
         if ($FailAtItem -eq $itemIndex) {
             throw "Deliberate failure after work item $itemIndex."
         }
+        [pscustomobject]@{ Item = $itemIndex; Steps = $StepsPerItem; Status = 'Processed' }
     }
 
     Write-Progress -Id 1 -Activity 'Processing work items' -Status 'Complete' -PercentComplete 100

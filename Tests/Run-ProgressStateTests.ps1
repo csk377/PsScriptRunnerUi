@@ -71,6 +71,7 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'PsScriptRunnerUi.ps
         $state = @{
             Progress = @{}; ProgressRecordsRead = 0L; Result = $null
             ErrorRecords = [System.Collections.Generic.List[System.Management.Automation.ErrorRecord]]::new()
+            Output = New-ScriptOutputState
         }
         $failure = [System.Management.Automation.ErrorRecord]::new([System.Exception]::new('first'),
             'First', [System.Management.Automation.ErrorCategory]::InvalidData, 'item-1')
@@ -94,7 +95,7 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'PsScriptRunnerUi.ps
         Assert-True (-not (Receive-ScriptProgress $pipeline $state $false)) 'The next empty poll must not request another refresh.'
         Assert-True ($state.ProgressRecordsRead -eq 1) 'An empty poll must not change the record count.'
     }
-    finally { $pipeline.Dispose() }
+    finally { $pipeline.Dispose(); $state.Output.Buffer.Dispose() }
 }
 
 Write-Output 'Progress state, selection, and stream-drain checks passed.'

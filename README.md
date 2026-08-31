@@ -28,9 +28,32 @@ Collect user input before launch and pass it as script parameters. Workers canno
 
 A WPF timer drains progress every 75 ms. The dialog uses the latest record per activity to show the most recently updated root and direct child. It does not show deeper trees. Completed activities leave the display, but completing a parent leaves its children. Reusing the parent's ID can attach those children to the new activity.
 
-`ProgressRecordsRead` counts every drained record, including updates skipped for display. Before allowing the dialog to close, the module calls `EndInvoke`, drains remaining progress, error, and information records, and displays the result. Idle polls drain errors and information without redrawing progress.
+`ProgressRecordsRead` counts every drained record, including updates skipped for display. Every poll empties all streams, even when output is hidden. Before allowing the dialog to close, the module calls `EndInvoke`, drains remaining records, and displays the result.
 
-`-CaptureHostOutput` forwards information messages to the launching host as plain text, without colors or `-NoNewline`. Otherwise, the module discards them. It does not preserve ordering across streams. The worker discards success output and keeps errors for the result. Warning, verbose, and debug records accumulate without display.
+## Script output
+
+`-OutputLevel` controls the dialog's diagnostic log. Levels are cumulative:
+
+| Level | Messages shown |
+| --- | --- |
+| `None` (default) | No diagnostic messages |
+| `Error` | Errors |
+| `Warn` | Above, plus warnings |
+| `Info` | Above, plus information and `Write-Host` |
+| `Verbose` | Above, plus verbose messages |
+| `Debug` | Above, plus debug messages |
+
+`-ShowOutput` independently displays success output (returned objects). Both options affect display only; progress, final status, and retained errors are unchanged. Choose these settings in the demo before running.
+
+```powershell
+$result = Invoke-UiScript -FilePath $scriptPath -OutputLevel Info -ShowOutput
+```
+
+Hidden streams are cleared without copying their records; errors are always read and retained. The worker enables information, verbose, and debug emission regardless of the display level. Scripts can override these preferences; information records remain available under `SilentlyContinue`, but not `Ignore`.
+
+The selectable log keeps the latest 65,536 characters and marks truncation. It preserves order within each stream, not between streams. Success objects use plain-text PowerShell formatting. Direct console writes and independently launched process output are not captured.
+
+`-CaptureHostOutput` separately forwards information messages to the launching host as plain text, without colors or `-NoNewline`.
 
 ## Cancellation and results
 
@@ -72,7 +95,7 @@ The result panel shows a selectable message: green for success, yellow for cance
 ## Limitations
 
 - Cancellation is cooperative, with no timeout, forced stop, or native-process termination. Scripts that ignore it can block the dialog or cleanup after a UI failure indefinitely.
-- Polls drain whole batches. Large batches or heavy host output can delay input, and undrained output buffers can grow. There is no guaranteed response-time or memory limit.
+- Polls drain whole batches. Large batches or heavy formatting/host output can delay input, and buffers can grow between polls. The log's text limit does not guarantee bounded memory or response time.
 - All errors are retained, so memory use grows with error volume.
 - Test shutdown, external window changes, focus, ownership, and production workloads in your host application.
 
@@ -89,6 +112,7 @@ Tests cover progress state, cancellation, errors, cleanup, host output, working 
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\Tests\Run-ProgressStateTests.ps1'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\Tests\Run-OutputStateTests.ps1'
 ```
 
 The optional benchmark compares CLI and GUI progress throughput. Use an interactive console for visible CLI progress. Omit `-OutputPath` to skip saving a report:

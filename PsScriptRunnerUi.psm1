@@ -167,7 +167,8 @@ function Add-ScriptOutput {
     }
     catch { $message = '<Unable to format this record.>' }
 
-    $line = '[{0}] {1}{2}' -f $Stream, $message, [Environment]::NewLine
+    $line = if ($Stream -eq 'Info') { '{0}{1}' -f $message, [Environment]::NewLine }
+    else { '[{0}] {1}{2}' -f $Stream, $message, [Environment]::NewLine }
     if ($line.Length -gt $OutputState.MaxCharacters) {
         $line = $line.Substring($line.Length - $OutputState.MaxCharacters)
         $OutputState.Truncated = $true

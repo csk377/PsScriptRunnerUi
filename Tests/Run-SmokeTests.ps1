@@ -94,19 +94,20 @@ function Invoke-Scenario {
             $rank = [array]::IndexOf(@('None', 'Error', 'Warn', 'Info', 'Verbose', 'Debug'), $OutputLevel)
             $diagnosticsEnabled = $Mode -ne 'SuppressDiagnostics'
             $expectations = @{
-                '[Error] error-stream'      = $rank -ge 1
-                '[Warn] warning-stream'     = $rank -ge 2
-                '[Info] information-stream' = $rank -ge 3 -and $diagnosticsEnabled
-                '[Info] host-stream'        = $rank -ge 3 -and $diagnosticsEnabled
-                '[Verbose] verbose-stream'  = $rank -ge 4 -and $diagnosticsEnabled
-                '[Debug] debug-stream'      = $rank -ge 5 -and $diagnosticsEnabled
-                'success-stream'            = [bool]$ShowOutput
-                'final-success'             = [bool]$ShowOutput
-                'final-information'         = $rank -ge 3 -and $diagnosticsEnabled
+                '[Error] error-stream'     = $rank -ge 1
+                '[Warn] warning-stream'    = $rank -ge 2
+                'information-stream'       = $rank -ge 3 -and $diagnosticsEnabled
+                'host-stream'              = $rank -ge 3 -and $diagnosticsEnabled
+                '[Verbose] verbose-stream' = $rank -ge 4 -and $diagnosticsEnabled
+                '[Debug] debug-stream'     = $rank -ge 5 -and $diagnosticsEnabled
+                'success-stream'           = [bool]$ShowOutput
+                'final-success'            = [bool]$ShowOutput
+                'final-information'        = $rank -ge 3 -and $diagnosticsEnabled
             }
             foreach ($token in $expectations.Keys) {
                 Assert-True ($probe.OutputText.Contains($token) -eq $expectations[$token]) "$Mode / $OutputLevel / ShowOutput=$ShowOutput incorrectly displayed $token."
             }
+            Assert-True (-not $probe.OutputText.Contains('[Info]')) "$Mode / $OutputLevel / ShowOutput=$ShowOutput prefixed information output."
             Assert-True ($probe.LiveOutput -eq ($rank -gt 0 -or $ShowOutput)) 'Output did not stream before the script finished.'
         }
         if ($Mode -eq 'OutputFlood') {

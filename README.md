@@ -51,7 +51,7 @@ $result = Invoke-UiScript -FilePath $scriptPath -OutputLevel Info -ShowOutput
 
 Hidden streams are cleared without copying their records; errors are always read and retained. The worker enables information, verbose, and debug emission regardless of the display level. Scripts can override these preferences; information records remain available under `SilentlyContinue`, but not `Ignore`.
 
-The selectable log keeps the latest 65,536 characters and marks truncation. It preserves order within each stream, not between streams. Success objects use plain-text PowerShell formatting. Direct console writes and independently launched process output are not captured.
+The selectable log keeps the latest 65,536 characters and marks truncation. Information and `Write-Host` messages appear without a stream prefix; other records retain their stream label. It preserves order within each stream, not between streams. Success objects use plain-text PowerShell formatting. Direct console writes and independently launched process output are not captured.
 
 `-CaptureHostOutput` separately forwards information messages to the launching host as plain text, without colors or `-NoNewline`.
 

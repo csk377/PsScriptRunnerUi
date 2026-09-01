@@ -34,16 +34,17 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'PsScriptRunnerUi.ps
                 $text = $state.Output.Text.ToString()
                 $rank = [array]::IndexOf($levels, $level)
                 $expectations = @{
-                    '[Error] friendly error'     = $rank -ge 1
-                    '[Warn] warning message'     = $rank -ge 2
-                    '[Info] information message' = $rank -ge 3
-                    '[Verbose] verbose message'  = $rank -ge 4
-                    '[Debug] debug message'      = $rank -ge 5
-                    'returned value'             = $show
+                    '[Error] friendly error'    = $rank -ge 1
+                    '[Warn] warning message'    = $rank -ge 2
+                    'information message'       = $rank -ge 3
+                    '[Verbose] verbose message' = $rank -ge 4
+                    '[Debug] debug message'     = $rank -ge 5
+                    'returned value'            = $show
                 }
                 foreach ($token in $expectations.Keys) {
                     Assert-True ($text.Contains($token) -eq $expectations[$token]) "$level / ShowOutput=$show incorrectly filtered $token."
                 }
+                Assert-True (-not $text.Contains('[Info] information message')) "$level / ShowOutput=$show prefixed information output."
                 foreach ($name in @('Error', 'Warning', 'Information', 'Verbose', 'Debug')) {
                     Assert-True ($pipeline.Streams.$name.Count -eq 0) "$name was not drained at $level."
                 }

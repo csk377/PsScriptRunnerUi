@@ -25,10 +25,14 @@ if ($parseErrors.Count -gt 0) {
 }
 
 $manifest = Test-ModuleManifest -Path (Join-Path $moduleRoot 'PsScriptRunnerUi.psd1')
+$scriptManifest = Test-ModuleManifest -Path (Join-Path $moduleRoot 'PsScriptRunnerUi.Script.psd1')
+
 [pscustomobject]@{
     PowerShellVersion = $PSVersionTable.PSVersion.ToString()
     FilesParsed = $files.Count
     ModuleName = $manifest.Name
     ModuleVersion = $manifest.Version.ToString()
+    ScriptModuleName = $scriptManifest.Name
+    ScriptModuleVersion = $scriptManifest.Version.ToString()
     ParseErrors = $parseErrors.Count
 } | Format-List

@@ -7,11 +7,7 @@
     Copyright         = '(c) 2026. All rights reserved.'
     Description       = 'Runs one PowerShell script asynchronously behind a responsive WPF progress dialog.'
     PowerShellVersion = '5.1'
-    FunctionsToExport = @(
-        'Invoke-UiScript',
-        'Test-ScriptCancellationRequested',
-        'Assert-ScriptNotCancelled'
-    )
+    FunctionsToExport = @('Invoke-UiScript')
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()

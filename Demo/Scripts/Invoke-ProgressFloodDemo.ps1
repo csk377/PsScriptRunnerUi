@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'Continue'
 
 if (-not (Get-Command Assert-ScriptNotCancelled -ErrorAction SilentlyContinue)) {
-    Import-Module (Join-Path $PSScriptRoot '..\..\PsScriptRunnerUi.psd1') -ErrorAction Stop
+    Import-Module (Join-Path $PSScriptRoot '..\..\PsScriptRunnerUi.Script.psd1') -ErrorAction Stop
 }
 
 # Intentionally bad example: every trivial iteration emits progress, even when the

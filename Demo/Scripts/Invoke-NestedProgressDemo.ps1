@@ -19,7 +19,7 @@ Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
 if (-not (Get-Command Assert-ScriptNotCancelled -ErrorAction SilentlyContinue)) {
-    Import-Module (Join-Path $PSScriptRoot '..\..\PsScriptRunnerUi.psd1') -ErrorAction Stop
+    Import-Module (Join-Path $PSScriptRoot '..\..\PsScriptRunnerUi.Script.psd1') -ErrorAction Stop
 }
 
 Write-Host "Starting simulated work across $ItemCount work items."

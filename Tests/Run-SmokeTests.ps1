@@ -8,6 +8,7 @@ if ($PSVersionTable.PSVersion.Major -ne 5 -or [System.Threading.Thread]::Current
 }
 $moduleRoot = Split-Path -Parent $PSScriptRoot
 Import-Module (Join-Path $moduleRoot 'PsScriptRunnerUi.psd1') -Force
+Import-Module (Join-Path $moduleRoot 'PsScriptRunnerUi.Script.psd1') -Force
 Add-Type -AssemblyName PresentationFramework
 & (Join-Path $PSScriptRoot 'Run-ProgressStateTests.ps1')
 & (Join-Path $PSScriptRoot 'Run-OutputStateTests.ps1')

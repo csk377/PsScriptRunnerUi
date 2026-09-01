@@ -71,7 +71,7 @@ finally {
 }
 ```
 
-Workers import the module automatically. CLI scripts must import it to use the helpers. Outside a worker, `Assert-ScriptNotCancelled` does nothing and `Test-ScriptCancellationRequested` returns false.
+Workers import `PsScriptRunnerUi.Script.psd1` automatically. CLI scripts must import that script-helper module to use the helpers. Outside a worker, `Assert-ScriptNotCancelled` does nothing and `Test-ScriptCancellationRequested` returns false.
 
 The result contains `Status`, `Duration`, `CancellationWasRequested`, `ErrorRecord`, `ErrorRecords`, `ErrorCount`, and `ProgressRecordsRead`:
 

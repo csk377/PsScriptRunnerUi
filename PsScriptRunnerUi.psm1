@@ -1,22 +1,5 @@
 Set-StrictMode -Version 2.0
 
-function Test-ScriptCancellationRequested {
-    [CmdletBinding()]
-    param()
-
-    $context = Get-Variable -Name '__UiScriptContext' -Scope Global -ErrorAction SilentlyContinue
-    return ($null -ne $context -and $context.Value.Cancellation.IsCancellationRequested)
-}
-
-function Assert-ScriptNotCancelled {
-    [CmdletBinding()]
-    param()
-
-    if (Test-ScriptCancellationRequested) {
-        throw [System.OperationCanceledException]::new('The script observed a cancellation request.')
-    }
-}
-
 function Update-ProgressControls {
     param($ProgressControls, $Record)
 
@@ -366,7 +349,7 @@ function Invoke-UiScript {
 
     try {
         $initialState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
-        $initialState.ImportPSModule([string[]] @((Join-Path $PSScriptRoot 'PsScriptRunnerUi.psd1')))
+        $initialState.ImportPSModule([string[]] @((Join-Path $PSScriptRoot 'PsScriptRunnerUi.Script.psd1')))
         $runspace = [runspacefactory]::CreateRunspace($initialState)
         $runspace.ApartmentState = 'MTA'
         $runspace.ThreadOptions = 'ReuseThread'
@@ -462,4 +445,4 @@ function Invoke-UiScript {
     }
 }
 
-Export-ModuleMember -Function Invoke-UiScript, Test-ScriptCancellationRequested, Assert-ScriptNotCancelled
+Export-ModuleMember -Function Invoke-UiScript

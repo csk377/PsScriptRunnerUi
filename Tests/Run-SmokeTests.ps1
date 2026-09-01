@@ -146,6 +146,7 @@ function Invoke-Scenario {
         if ($Mode -eq 'CaughtError') { Assert-True $metrics.Handled 'The script did not handle its error.' }
         if ($Mode -eq 'IgnoreCancel') { Assert-True $metrics.SawRequest 'The worker did not see the close request.' }
         if ($Mode -eq 'Location') { Assert-True ($metrics.Location -eq $PSScriptRoot) 'WorkingDirectory was not applied.' }
+        if ($Mode -eq 'Success') { Assert-True $metrics.ConfirmationHelperAvailable 'The worker did not import Request-UserConfirmation.' }
         $rows.Add([pscustomobject]@{ Scenario = $Mode; Status = $result.Status; ProgressRecords = $result.ProgressRecordsRead })
     }
     finally { $observer.Stop() }

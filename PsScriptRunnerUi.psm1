@@ -265,6 +265,51 @@ function Update-ScriptProgressDisplay {
     }
 }
 
+function Receive-ScriptEvent {
+    param($Context, $Window, $Timer)
+
+    $request = $null
+    if (-not $Context.EventQueue.TryDequeue([ref] $request)) { return }
+    if ($request.EventType -ne 'Confirmation') {
+        throw "Unsupported script event type '$($request.EventType)'."
+    }
+    $response = $request.Response
+    [System.Threading.Monitor]::Enter($response.SyncRoot)
+    try {
+        if ($response.Abandoned) { return }
+        if ($Context.Cancellation.IsCancellationRequested) {
+            $response.Error = [System.OperationCanceledException]::new('Cancellation was requested before confirmation could be displayed.')
+            $response.Completed = $true
+            return
+        }
+    }
+    finally { [System.Threading.Monitor]::Exit($response.SyncRoot) }
+
+    # MessageBox runs a nested dispatcher loop. Pause polling so this callback
+    # cannot be reentered and the owner cannot complete while the box is open.
+    $Timer.Stop()
+    try {
+        $choice = [System.Windows.MessageBox]::Show($Window, $request.Message, $request.Title,
+            [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question,
+            [System.Windows.MessageBoxResult] $request.Default)
+        [System.Threading.Monitor]::Enter($response.SyncRoot)
+        try {
+            $response.Result = $choice -eq [System.Windows.MessageBoxResult]::Yes
+            $response.Completed = $true
+        }
+        finally { [System.Threading.Monitor]::Exit($response.SyncRoot) }
+    }
+    catch {
+        [System.Threading.Monitor]::Enter($response.SyncRoot)
+        try {
+            $response.Error = $_.Exception
+            $response.Completed = $true
+        }
+        finally { [System.Threading.Monitor]::Exit($response.SyncRoot) }
+    }
+    finally { $Timer.Start() }
+}
+
 function Invoke-UiScript {
     [CmdletBinding()]
     param(
@@ -318,7 +363,11 @@ function Invoke-UiScript {
     if ($OutputLevel -ne 'None' -or $ShowOutput) { $controls.OutputPanel.Visibility = 'Visible' }
 
     $cancellation = [System.Threading.CancellationTokenSource]::new()
-    $context = [hashtable]::Synchronized(@{ Cancellation = $cancellation; Cancelled = $false })
+    $context = [hashtable]::Synchronized(@{
+        Cancellation = $cancellation
+        Cancelled = $false
+        EventQueue = [System.Collections.Concurrent.ConcurrentQueue[object]]::new()
+    })
     # All state below belongs to the UI thread; only context is shared with the worker.
     $state = @{
         Progress = @{}; ProgressRecordsRead = 0L; Result = $null; Ended = $false; Fault = $null
@@ -389,6 +438,7 @@ function Invoke-UiScript {
                 if (-not $completed) {
                     if ($progressChanged) { Update-ScriptProgressDisplay $state $controls }
                     Update-ScriptOutputDisplay $state.Output $controls
+                    Receive-ScriptEvent $context $window $timer
                     return
                 }
 

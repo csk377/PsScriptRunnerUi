@@ -28,11 +28,6 @@ $demoScript = Join-Path $PSScriptRoot 'Scripts\Invoke-NestedProgressDemo.ps1'
 
 $runButton.add_Click({
     $scenario = $scenarioBox.SelectedItem.Tag.ToString()
-    if ($scenario -eq 'Confirmation') {
-        $choice = [System.Windows.MessageBox]::Show($window, 'Continue with the simulated work items?',
-            'Confirm demo operation', 'YesNo', 'Question', 'No')
-        if ($choice -ne 'Yes') { $resultText.Text = 'Operation declined.'; return }
-    }
     $headingText = "Demo: $($scenarioBox.SelectedItem.Content)"
     $parameters = @{
         ItemCount = 4
@@ -40,6 +35,7 @@ $runButton.add_Click({
         DelayMilliseconds = 40
         FailAtItem = if ($scenario -eq 'Failure') { 2 } else { 0 }
         EmitErrors = $scenario -eq 'CompletedWithErrors'
+        AskForConfirmation = $scenario -eq 'Confirmation'
     }
 
     if ($scenario -eq 'Cancellation') {

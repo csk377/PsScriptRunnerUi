@@ -9,7 +9,8 @@
     PowerShellVersion = '5.1'
     FunctionsToExport = @(
         'Test-ScriptCancellationRequested',
-        'Assert-ScriptNotCancelled'
+        'Assert-ScriptNotCancelled',
+        'Request-UserConfirmation'
     )
     CmdletsToExport   = @()
     VariablesToExport = @()

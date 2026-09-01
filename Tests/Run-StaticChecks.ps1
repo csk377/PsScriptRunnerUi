@@ -26,6 +26,10 @@ if ($parseErrors.Count -gt 0) {
 
 $manifest = Test-ModuleManifest -Path (Join-Path $moduleRoot 'PsScriptRunnerUi.psd1')
 $scriptManifest = Test-ModuleManifest -Path (Join-Path $moduleRoot 'PsScriptRunnerUi.Script.psd1')
+$expectedScriptFunctions = @('Assert-ScriptNotCancelled', 'Request-UserConfirmation', 'Test-ScriptCancellationRequested')
+if (@(Compare-Object $expectedScriptFunctions @($scriptManifest.ExportedFunctions.Keys)).Count -ne 0) {
+    throw 'The script-helper module exports do not match the expected functions.'
+}
 
 [pscustomobject]@{
     PowerShellVersion = $PSVersionTable.PSVersion.ToString()

@@ -19,7 +19,10 @@ try {
             if ($Mode -eq 'OutputFlood') { 'x' * 70000 }
             Start-Sleep -Milliseconds 400
         }
-        'Success' { 'discarded success output' }
+        'Success' {
+            $Metrics.ConfirmationHelperAvailable = $null -ne (Get-Command Request-UserConfirmation -ErrorAction SilentlyContinue)
+            'discarded success output'
+        }
         'Throw' { throw 'terminating failure' }
         'NestedThrow' { throw [System.InvalidOperationException]::new('Operation could not complete.', [System.Exception]::new('Underlying detail.')) }
         'Error' { Write-Error 'nonterminating failure' -ErrorAction Continue }

@@ -12,7 +12,9 @@ param(
     [ValidateRange(0, 100)]
     [int] $FailAtItem = 0,
 
-    [switch] $EmitErrors
+    [switch] $EmitErrors,
+
+    [switch] $AskForConfirmation
 )
 
 Set-StrictMode -Version 2.0
@@ -20,6 +22,14 @@ $ErrorActionPreference = 'Stop'
 
 if (-not (Get-Command Assert-ScriptNotCancelled -ErrorAction SilentlyContinue)) {
     Import-Module (Join-Path $PSScriptRoot '..\..\PsScriptRunnerUi.Script.psd1') -ErrorAction Stop
+}
+
+if ($AskForConfirmation -and -not (Request-UserConfirmation `
+    -Title 'Confirm demo operation' `
+    -Message 'Continue with the simulated work items?' `
+    -Default No)) {
+    Write-Host 'The operation was declined.'
+    return
 }
 
 Write-Host "Starting simulated work across $ItemCount work items."

@@ -20,7 +20,7 @@ From the repository directory:
 powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File '.\Demo\Start-Demo.ps1'
 ```
 
-The demo simulates success, confirmation, nonterminating errors, failure, cancellation, and a progress flood. Declining confirmation prevents launch.
+The demo simulates success, confirmation from an executing script, nonterminating errors, failure, cancellation, and a progress flood. Declining confirmation ends the script before its simulated work begins.
 
 Collect user input before launch and pass it as script parameters. Workers cannot use `Read-Host`, credential prompts, or other interactive host requests. They start in the caller's filesystem location unless you pass `-WorkingDirectory`, but do not inherit caller functions, variables, or application modules.
 
@@ -72,6 +72,16 @@ finally {
 ```
 
 Workers import `PsScriptRunnerUi.Script.psd1` automatically. CLI scripts must import that script-helper module to use the helpers. Outside a worker, `Assert-ScriptNotCancelled` does nothing and `Test-ScriptCancellationRequested` returns false.
+
+Use `Request-UserConfirmation` for a Yes/No decision that must work in both modes:
+
+```powershell
+if (-not (Request-UserConfirmation -Message 'Continue processing?' -Title 'Confirm operation' -Default No)) {
+    return
+}
+```
+
+In a CLI script it reads `Y` or `N` through `Read-Host`, using the default for an empty answer. In an `Invoke-UiScript` worker it displays a Yes/No message box owned by the progress window and returns `$true` for Yes. The progress window cannot be cancelled while its message box is open; dismiss the message box first. Cancellation before display or while a request is waiting throws `OperationCanceledException` so the script's cleanup runs.
 
 The result contains `Status`, `Duration`, `CancellationWasRequested`, `ErrorRecord`, `ErrorRecords`, `ErrorCount`, and `ProgressRecordsRead`:
 

@@ -167,8 +167,22 @@ function Add-ScriptOutput {
     }
     catch { $message = '<Unable to format this record.>' }
 
-    $line = if ($Stream -eq 'Info') { '{0}{1}' -f $message, [Environment]::NewLine }
-    else { '[{0}] {1}{2}' -f $Stream, $message, [Environment]::NewLine }
+    $newLine = [Environment]::NewLine
+    $line = if ($Stream -eq 'Info') { '{0}{1}' -f $message, $newLine }
+    else { '[{0}] {1}{2}' -f $Stream, $message, $newLine }
+    $line = [regex]::Replace($line, '\r\n|\r|\n', $newLine)
+    $line = [regex]::Replace($line, "(?:$([regex]::Escape($newLine))){3,}", $newLine + $newLine)
+    $doubleNewLine = $newLine + $newLine
+    if ($OutputState.Text.Length -ge $doubleNewLine.Length -and
+        $OutputState.Text.ToString($OutputState.Text.Length - $doubleNewLine.Length, $doubleNewLine.Length) -ceq $doubleNewLine) {
+        while ($line.StartsWith($newLine)) { $line = $line.Substring($newLine.Length) }
+    }
+    elseif ($OutputState.Text.Length -ge $newLine.Length -and
+        $OutputState.Text.ToString($OutputState.Text.Length - $newLine.Length, $newLine.Length) -ceq $newLine -and
+        $line.StartsWith($doubleNewLine)) {
+        $line = $line.Substring($newLine.Length)
+    }
+    if ($line.Length -eq 0) { return }
     if ($line.Length -gt $OutputState.MaxCharacters) {
         $line = $line.Substring($line.Length - $OutputState.MaxCharacters)
         $OutputState.Truncated = $true

@@ -66,6 +66,21 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'PsScriptRunnerUi.ps
             $outputState.Text.ToString().EndsWith("newest message$([Environment]::NewLine)")) 'Output history must be bounded and retain its tail.'
     }
     finally { $outputState.Buffer.Dispose() }
+
+    $informationState = New-ScriptOutputState 'Info'
+    try {
+        $newLine = [Environment]::NewLine
+        Add-ScriptOutput $informationState 'Info' ([System.Management.Automation.InformationRecord]::new(
+                "first${newLine}${newLine}${newLine}second", 'test'))
+        Add-ScriptOutput $informationState 'Info' ([System.Management.Automation.InformationRecord]::new('', 'test'))
+        Add-ScriptOutput $informationState 'Info' ([System.Management.Automation.InformationRecord]::new('', 'test'))
+        Add-ScriptOutput $informationState 'Info' ([System.Management.Automation.InformationRecord]::new('third', 'test'))
+        $informationText = $informationState.Text.ToString()
+        Assert-True ($informationText.Contains("first${newLine}${newLine}second")) 'Output did not collapse internal blank lines.'
+        Assert-True (-not $informationText.Contains($newLine + $newLine + $newLine)) 'Output retained consecutive blank lines across records.'
+        Assert-True ($informationText.EndsWith("third$newLine")) 'Output lost content after collapsed blank lines.'
+    }
+    finally { $informationState.Buffer.Dispose() }
 }
 
-Write-Output 'All output levels, success-output filtering, stream draining, and history bounds passed.'
+Write-Output 'All output levels, success-output filtering, stream draining, blank-line collapsing, and history bounds passed.'

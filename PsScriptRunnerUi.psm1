@@ -15,7 +15,7 @@ function Show-ScriptOutcome {
     $Controls.CancelButton.Visibility = 'Collapsed'
     $Controls.CloseButton.Visibility = 'Visible'
     $Controls.CloseButton.IsEnabled = $true
-    $Controls.ChildPanel.Visibility = 'Collapsed'
+    $Controls.Child.Panel.Visibility = 'Collapsed'
     $Controls.Parent.Bar.IsIndeterminate = $false
     $Controls.Parent.Bar.Value = 100
     $Controls.Parent.Activity.Text = $Status
@@ -251,7 +251,7 @@ function Update-ScriptProgressDisplay {
     param($State, $Controls)
 
     $selection = Get-ScriptProgressSelection $State
-    $Controls.ChildPanel.Visibility = 'Collapsed'
+    $Controls.Child.Panel.Visibility = 'Collapsed'
     if ($null -eq $selection.Parent) {
         $Controls.Parent.Activity.Text = 'Waiting for progress'
         $Controls.Parent.Status.Text = 'No active progress records.'
@@ -261,7 +261,7 @@ function Update-ScriptProgressDisplay {
 
     Update-ProgressControls $Controls.Parent $selection.Parent
     if ($null -ne $selection.Child) {
-        $Controls.ChildPanel.Visibility = 'Visible'
+        $Controls.Child.Panel.Visibility = 'Visible'
         Update-ProgressControls $Controls.Child $selection.Child
     }
 }
@@ -311,6 +311,81 @@ function Receive-ScriptEvent {
     finally { $Timer.Start() }
 }
 
+function New-ScriptWindowView {
+    param([string]$HeadingText, $Owner, [bool]$ShowOutputPanel)
+
+    Add-Type -AssemblyName PresentationFramework -ErrorAction Stop
+    $xaml = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'Xaml\ProgressWindow.xaml') -Raw
+    $window = [System.Windows.Markup.XamlReader]::Parse($xaml)
+
+    if ($null -ne $Owner) { $window.Owner = $Owner }
+    $window.FindName('HeadingText').Text = $HeadingText
+    $controls = @{
+        Parent = [pscustomobject]@{
+            Panel    = $window.FindName('OverallPanel')
+            Activity = $window.FindName('OverallActivity')
+            Status   = $window.FindName('OverallStatus')
+            Bar      = $window.FindName('OverallProgress')
+        }
+        Child  = [pscustomobject]@{
+            Panel    = $window.FindName('ChildPanel')
+            Activity = $window.FindName('ChildActivity')
+            Status   = $window.FindName('ChildStatus')
+            Bar      = $window.FindName('ChildProgress')
+        }
+    }
+    foreach ($name in @('CancelButton', 'CloseButton', 'OutputPanel', 'OutputText', 'OutputTruncation')) {
+        $controls[$name] = $window.FindName($name)
+    }
+    if ($ShowOutputPanel) { $controls.OutputPanel.Visibility = 'Visible' }
+
+    [pscustomobject]@{
+        Window   = $window
+        Controls = $controls
+    }
+}
+
+function New-ScriptWorkerPipeline {
+    param($Context, [string]$ScriptPath, [hashtable]$Parameters, [string]$WorkingDirectory)
+
+    $runspace = $null
+    $pipeline = $null
+    try {
+        $initialState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
+        $initialState.ImportPSModule([string[]] @((Join-Path $PSScriptRoot 'PsScriptRunnerUi.Script.psd1')))
+        $runspace = [runspacefactory]::CreateRunspace($initialState)
+        $runspace.ApartmentState = 'MTA'
+        $runspace.ThreadOptions = 'ReuseThread'
+        $runspace.Open()
+        $runspace.SessionStateProxy.SetVariable('__UiScriptContext', $Context)
+        # Emission is independent of display filtering. Scripts can override these preferences.
+        foreach ($preference in @('InformationPreference', 'VerbosePreference', 'DebugPreference')) {
+            $runspace.SessionStateProxy.SetVariable($preference, [System.Management.Automation.ActionPreference]::Continue)
+        }
+        $pipeline = [powershell]::Create()
+        $pipeline.Runspace = $runspace
+        [void]$pipeline.AddScript({
+                param($Path, $Arguments, $Directory)
+                Set-Location -LiteralPath $Directory -ErrorAction Stop
+                try { & $Path @Arguments }
+                catch [System.OperationCanceledException] {
+                    if (-not $global:__UiScriptContext.Cancellation.IsCancellationRequested) { throw }
+                    $global:__UiScriptContext.Cancelled = $true
+                }
+            }.ToString()).AddArgument($ScriptPath).AddArgument($Parameters).AddArgument($WorkingDirectory)
+
+        [pscustomobject]@{
+            Runspace = $runspace
+            Pipeline = $pipeline
+        }
+    }
+    catch {
+        if ($null -ne $pipeline) { $pipeline.Dispose() }
+        if ($null -ne $runspace) { $runspace.Dispose() }
+        throw
+    }
+}
+
 function Invoke-UiScript {
     [CmdletBinding()]
     param(
@@ -339,29 +414,9 @@ function Invoke-UiScript {
         throw 'WorkingDirectory must be an existing filesystem directory.'
     }
 
-    Add-Type -AssemblyName PresentationFramework -ErrorAction Stop
-    $xaml = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'Xaml\ProgressWindow.xaml') -Raw
-    $window = [System.Windows.Markup.XamlReader]::Parse($xaml)
-
-    if ($null -ne $Owner) { $window.Owner = $Owner }
-    $window.FindName('HeadingText').Text = $HeadingText
-    $controls = @{
-        Parent = [pscustomobject]@{
-            Panel    = $window.FindName('OverallPanel')
-            Activity = $window.FindName('OverallActivity')
-            Status   = $window.FindName('OverallStatus')
-            Bar      = $window.FindName('OverallProgress')
-        }
-        Child  = [pscustomobject]@{
-            Activity = $window.FindName('ChildActivity')
-            Status   = $window.FindName('ChildStatus')
-            Bar      = $window.FindName('ChildProgress')
-        }
-    }
-    foreach ($name in @('ChildPanel', 'CancelButton', 'CloseButton', 'OutputPanel', 'OutputText', 'OutputTruncation')) {
-        $controls[$name] = $window.FindName($name)
-    }
-    if ($OutputLevel -ne 'None' -or $ShowOutput) { $controls.OutputPanel.Visibility = 'Visible' }
+    $view = New-ScriptWindowView $HeadingText $Owner ($OutputLevel -ne 'None' -or $ShowOutput)
+    $window = $view.Window
+    $controls = $view.Controls
 
     $cancellation = [System.Threading.CancellationTokenSource]::new()
     $context = [hashtable]::Synchronized(@{
@@ -398,28 +453,9 @@ function Invoke-UiScript {
         })
 
     try {
-        $initialState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
-        $initialState.ImportPSModule([string[]] @((Join-Path $PSScriptRoot 'PsScriptRunnerUi.Script.psd1')))
-        $runspace = [runspacefactory]::CreateRunspace($initialState)
-        $runspace.ApartmentState = 'MTA'
-        $runspace.ThreadOptions = 'ReuseThread'
-        $runspace.Open()
-        $runspace.SessionStateProxy.SetVariable('__UiScriptContext', $context)
-        # Emission is independent of display filtering. Scripts can override these preferences.
-        foreach ($preference in @('InformationPreference', 'VerbosePreference', 'DebugPreference')) {
-            $runspace.SessionStateProxy.SetVariable($preference, [System.Management.Automation.ActionPreference]::Continue)
-        }
-        $pipeline = [powershell]::Create()
-        $pipeline.Runspace = $runspace
-        [void]$pipeline.AddScript({
-                param($Path, $Arguments, $Directory)
-                Set-Location -LiteralPath $Directory -ErrorAction Stop
-                try { & $Path @Arguments }
-                catch [System.OperationCanceledException] {
-                    if (-not $global:__UiScriptContext.Cancellation.IsCancellationRequested) { throw }
-                    $global:__UiScriptContext.Cancelled = $true
-                }
-            }.ToString()).AddArgument($scriptFile.FullName).AddArgument($Parameters).AddArgument($directory.FullName)
+        $worker = New-ScriptWorkerPipeline $context $scriptFile.FullName $Parameters $directory.FullName
+        $runspace = $worker.Runspace
+        $pipeline = $worker.Pipeline
 
         $clock = [System.Diagnostics.Stopwatch]::StartNew()
         # A completed input buffer allows a script with no pipeline input to finish.

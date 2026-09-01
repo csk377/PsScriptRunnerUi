@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 $moduleRoot = Split-Path -Parent $PSScriptRoot
 
 & (Join-Path $PSScriptRoot 'Format-Code.ps1') -Check
+Import-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -ErrorAction Stop
 
 # Parse module, demo, and test sources.
 $files = @(Get-ChildItem -LiteralPath $moduleRoot -File)
@@ -27,6 +28,23 @@ if ($parseErrors.Count -gt 0) {
     throw ($parseErrors -join [Environment]::NewLine)
 }
 
+$excludedAnalyzerRules = @(
+    'PSAvoidUsingWriteHost'                       # Host output is an intentional feature and test surface.
+    'PSReviewUnusedParameter'                     # Does not recognize parameters captured by WPF event closures.
+    'PSUseShouldProcessForStateChangingFunctions' # Private test helpers do not change external state.
+    'PSUseSingularNouns'                          # Applies to a private test helper, not the exported API.
+)
+$analysisResults = @($files | ForEach-Object {
+        Invoke-ScriptAnalyzer -Path $_.FullName -Severity Warning, Error -ExcludeRule $excludedAnalyzerRules
+    })
+if ($analysisResults.Count -gt 0) {
+    $details = $analysisResults |
+        Select-Object ScriptName, Line, Severity, RuleName, Message |
+        Format-Table -Wrap -AutoSize |
+        Out-String
+    throw "PSScriptAnalyzer reported warning or error diagnostics:`r`n$details"
+}
+
 $manifest = Test-ModuleManifest -Path (Join-Path $moduleRoot 'PsScriptRunnerUi.psd1')
 $scriptManifest = Test-ModuleManifest -Path (Join-Path $moduleRoot 'PsScriptRunnerUi.Script.psd1')
 $expectedScriptFunctions = @('Assert-ScriptNotCancelled', 'Request-UserConfirmation', 'Test-ScriptCancellationRequested')
@@ -42,4 +60,5 @@ if (@(Compare-Object $expectedScriptFunctions @($scriptManifest.ExportedFunction
     ScriptModuleName    = $scriptManifest.Name
     ScriptModuleVersion = $scriptManifest.Version.ToString()
     ParseErrors         = $parseErrors.Count
+    AnalyzerDiagnostics = $analysisResults.Count
 } | Format-List

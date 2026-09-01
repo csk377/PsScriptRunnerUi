@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param()
 
 Set-StrictMode -Version 2.0
@@ -27,59 +27,59 @@ $resultText = $window.FindName('ResultText')
 $demoScript = Join-Path $PSScriptRoot 'Scripts\Invoke-NestedProgressDemo.ps1'
 
 $runButton.add_Click({
-    $scenario = $scenarioBox.SelectedItem.Tag.ToString()
-    $headingText = "Demo: $($scenarioBox.SelectedItem.Content)"
-    $parameters = @{
-        ItemCount = 4
-        StepsPerItem = 12
-        DelayMilliseconds = 40
-        FailAtItem = if ($scenario -eq 'Failure') { 2 } else { 0 }
-        EmitErrors = $scenario -eq 'CompletedWithErrors'
-        AskForConfirmation = $scenario -eq 'Confirmation'
-    }
-
-    if ($scenario -eq 'Cancellation') {
-        $parameters.ItemCount = 8
-        $parameters.StepsPerItem = 20
-        $parameters.DelayMilliseconds = 125
-    }
-
-    $selectedScript = $demoScript
-    if ($scenario -eq 'ProgressFlood') {
-        $selectedScript = Join-Path $PSScriptRoot 'Scripts\Invoke-ProgressFloodDemo.ps1'
-        $parameters = @{ DurationSeconds = 5 }
-    }
-
-    $runButton.IsEnabled = $false
-    $resultText.Text = 'Running...'
-    try {
-        $result = Invoke-UiScript `
-            -FilePath $selectedScript `
-            -HeadingText $headingText `
-            -Parameters $parameters `
-            -CaptureHostOutput:([bool] $captureHostBox.IsChecked) `
-            -OutputLevel $outputLevelBox.SelectedItem.Content.ToString() `
-            -ShowOutput:([bool] $showOutputBox.IsChecked) `
-            -Owner $window `
-            -CloseOnSuccess:([bool] $closeOnSuccessBox.IsChecked)
-
-        if ($null -eq $result) {
-            $resultText.Text = 'The dialog closed without a result.'
+        $scenario = $scenarioBox.SelectedItem.Tag.ToString()
+        $headingText = "Demo: $($scenarioBox.SelectedItem.Content)"
+        $parameters = @{
+            ItemCount          = 4
+            StepsPerItem       = 12
+            DelayMilliseconds  = 40
+            FailAtItem         = if ($scenario -eq 'Failure') { 2 } else { 0 }
+            EmitErrors         = $scenario -eq 'CompletedWithErrors'
+            AskForConfirmation = $scenario -eq 'Confirmation'
         }
-        else {
-            $resultText.Text = 'Status: {0}; duration: {1:n1}s; cancellation requested: {2}; errors: {3}' -f `
-                $result.Status,
+
+        if ($scenario -eq 'Cancellation') {
+            $parameters.ItemCount = 8
+            $parameters.StepsPerItem = 20
+            $parameters.DelayMilliseconds = 125
+        }
+
+        $selectedScript = $demoScript
+        if ($scenario -eq 'ProgressFlood') {
+            $selectedScript = Join-Path $PSScriptRoot 'Scripts\Invoke-ProgressFloodDemo.ps1'
+            $parameters = @{ DurationSeconds = 5 }
+        }
+
+        $runButton.IsEnabled = $false
+        $resultText.Text = 'Running...'
+        try {
+            $result = Invoke-UiScript `
+                -FilePath $selectedScript `
+                -HeadingText $headingText `
+                -Parameters $parameters `
+                -CaptureHostOutput:([bool]$captureHostBox.IsChecked) `
+                -OutputLevel $outputLevelBox.SelectedItem.Content.ToString() `
+                -ShowOutput:([bool]$showOutputBox.IsChecked) `
+                -Owner $window `
+                -CloseOnSuccess:([bool]$closeOnSuccessBox.IsChecked)
+
+            if ($null -eq $result) {
+                $resultText.Text = 'The dialog closed without a result.'
+            }
+            else {
+                $resultText.Text = 'Status: {0}; duration: {1:n1}s; cancellation requested: {2}; errors: {3}' -f `
+                    $result.Status,
                 $result.Duration.TotalSeconds,
                 $result.CancellationWasRequested,
                 $result.ErrorCount
+            }
         }
-    }
-    catch {
-        $resultText.Text = "Runner error: $($_.Exception.Message)"
-    }
-    finally {
-        $runButton.IsEnabled = $true
-    }
-})
+        catch {
+            $resultText.Text = "Runner error: $($_.Exception.Message)"
+        }
+        finally {
+            $runButton.IsEnabled = $true
+        }
+    })
 
-[void] $window.ShowDialog()
+[void]$window.ShowDialog()

@@ -1,4 +1,4 @@
-@{
+﻿@{
     RootModule        = 'PsScriptRunnerUi.psm1'
     ModuleVersion     = '0.2.0'
     GUID              = '1483d242-34ce-48c9-a33b-1a90218d6451'
@@ -13,7 +13,7 @@
     AliasesToExport   = @()
     PrivateData       = @{
         PSData = @{
-            Tags       = @('WPF', 'Runspace', 'Progress')
+            Tags = @('WPF', 'Runspace', 'Progress')
         }
     }
 }

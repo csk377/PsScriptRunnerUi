@@ -1,4 +1,4 @@
-param([string] $Mode = 'Success', [hashtable] $Metrics = @{}, [int] $ProgressUpdates = 1000)
+﻿param([string]$Mode = 'Success', [hashtable]$Metrics = @{}, [int]$ProgressUpdates = 1000)
 
 $ErrorActionPreference = 'Stop'
 try {

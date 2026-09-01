@@ -1,8 +1,11 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param()
 
 $ErrorActionPreference = 'Stop'
 $moduleRoot = Split-Path -Parent $PSScriptRoot
+
+& (Join-Path $PSScriptRoot 'Format-Code.ps1') -Check
+
 # Parse module, demo, and test sources.
 $files = @(Get-ChildItem -LiteralPath $moduleRoot -File)
 foreach ($directory in @('Demo', 'Tests')) {
@@ -14,7 +17,7 @@ $parseErrors = [System.Collections.Generic.List[string]]::new()
 foreach ($file in $files) {
     $tokens = $null
     $errors = $null
-    [void] [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref] $tokens, [ref] $errors)
+    [void] [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
     foreach ($errorItem in $errors) {
         $parseErrors.Add(('{0}:{1}: {2}' -f $file.FullName, $errorItem.Extent.StartLineNumber, $errorItem.Message))
     }
@@ -32,11 +35,11 @@ if (@(Compare-Object $expectedScriptFunctions @($scriptManifest.ExportedFunction
 }
 
 [pscustomobject]@{
-    PowerShellVersion = $PSVersionTable.PSVersion.ToString()
-    FilesParsed = $files.Count
-    ModuleName = $manifest.Name
-    ModuleVersion = $manifest.Version.ToString()
-    ScriptModuleName = $scriptManifest.Name
+    PowerShellVersion   = $PSVersionTable.PSVersion.ToString()
+    FilesParsed         = $files.Count
+    ModuleName          = $manifest.Name
+    ModuleVersion       = $manifest.Version.ToString()
+    ScriptModuleName    = $scriptManifest.Name
     ScriptModuleVersion = $scriptManifest.Version.ToString()
-    ParseErrors = $parseErrors.Count
+    ParseErrors         = $parseErrors.Count
 } | Format-List

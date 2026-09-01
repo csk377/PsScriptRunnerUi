@@ -1,20 +1,20 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateRange(1, 100)]
-    [int] $ItemCount = 4,
+    [int]$ItemCount = 4,
 
     [ValidateRange(1, 1000)]
-    [int] $StepsPerItem = 12,
+    [int]$StepsPerItem = 12,
 
     [ValidateRange(0, 10000)]
-    [int] $DelayMilliseconds = 75,
+    [int]$DelayMilliseconds = 75,
 
     [ValidateRange(0, 100)]
-    [int] $FailAtItem = 0,
+    [int]$FailAtItem = 0,
 
-    [switch] $EmitErrors,
+    [switch]$EmitErrors,
 
-    [switch] $AskForConfirmation
+    [switch]$AskForConfirmation
 )
 
 Set-StrictMode -Version 2.0
@@ -25,9 +25,9 @@ if (-not (Get-Command Assert-ScriptNotCancelled -ErrorAction SilentlyContinue)) 
 }
 
 if ($AskForConfirmation -and -not (Request-UserConfirmation `
-    -Title 'Confirm demo operation' `
-    -Message 'Continue with the simulated work items?' `
-    -Default No)) {
+            -Title 'Confirm demo operation' `
+            -Message 'Continue with the simulated work items?' `
+            -Default No)) {
     Write-Host 'The operation was declined.'
     return
 }

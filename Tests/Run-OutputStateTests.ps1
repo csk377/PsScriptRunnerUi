@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param()
 
 Set-StrictMode -Version 2.0
@@ -7,7 +7,7 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'PsScriptRunnerUi.ps
 
 & (Get-Module PsScriptRunnerUi) {
     function Assert-True {
-        param([bool] $Condition, [string] $Message)
+        param([bool]$Condition, [string]$Message)
         if (-not $Condition) { throw $Message }
     }
 
@@ -17,7 +17,7 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'PsScriptRunnerUi.ps
             $pipeline = [powershell]::Create()
             $state = @{
                 ErrorRecords = [System.Collections.Generic.List[System.Management.Automation.ErrorRecord]]::new()
-                Output = New-ScriptOutputState $level $show
+                Output       = New-ScriptOutputState $level $show
             }
             try {
                 $errorRecord = [System.Management.Automation.ErrorRecord]::new([System.Exception]::new('internal error'),
@@ -34,12 +34,12 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'PsScriptRunnerUi.ps
                 $text = $state.Output.Text.ToString()
                 $rank = [array]::IndexOf($levels, $level)
                 $expectations = @{
-                    '[Error] friendly error' = $rank -ge 1
-                    '[Warn] warning message' = $rank -ge 2
+                    '[Error] friendly error'     = $rank -ge 1
+                    '[Warn] warning message'     = $rank -ge 2
                     '[Info] information message' = $rank -ge 3
-                    '[Verbose] verbose message' = $rank -ge 4
-                    '[Debug] debug message' = $rank -ge 5
-                    'returned value' = $show
+                    '[Verbose] verbose message'  = $rank -ge 4
+                    '[Debug] debug message'      = $rank -ge 5
+                    'returned value'             = $show
                 }
                 foreach ($token in $expectations.Keys) {
                     Assert-True ($text.Contains($token) -eq $expectations[$token]) "$level / ShowOutput=$show incorrectly filtered $token."

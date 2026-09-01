@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param()
 
 Set-StrictMode -Version 2.0
@@ -8,11 +8,11 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'PsScriptRunnerUi.ps
 # Exercise private state transitions with explicit batches; no WPF dispatcher or sleeps.
 & (Get-Module PsScriptRunnerUi) {
     function Assert-True {
-        param([bool] $Condition, [string] $Message)
+        param([bool]$Condition, [string]$Message)
         if (-not $Condition) { throw $Message }
     }
     function New-TestRecord {
-        param([int] $Id, [string] $Activity, [int] $Parent = -1, [int] $Percent = 0, [switch] $Completed)
+        param([int]$Id, [string]$Activity, [int]$Parent = -1, [int]$Percent = 0, [switch]$Completed)
         $record = [System.Management.Automation.ProgressRecord]::new($Id, $Activity, "$Activity status")
         $record.ParentActivityId = $Parent
         $record.PercentComplete = $Percent
@@ -71,7 +71,7 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'PsScriptRunnerUi.ps
         $state = @{
             Progress = @{}; ProgressRecordsRead = 0L; Result = $null
             ErrorRecords = [System.Collections.Generic.List[System.Management.Automation.ErrorRecord]]::new()
-            Output = New-ScriptOutputState
+            Output       = New-ScriptOutputState
         }
         $failure = [System.Management.Automation.ErrorRecord]::new([System.Exception]::new('first'),
             'First', [System.Management.Automation.ErrorCategory]::InvalidData, 'item-1')

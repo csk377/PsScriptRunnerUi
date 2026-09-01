@@ -1,10 +1,10 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateRange(1, 60)]
-    [int] $DurationSeconds = 5,
+    [int]$DurationSeconds = 5,
 
     # The runner discards success output; a shared hashtable also exposes metrics to GUI callers.
-    [hashtable] $Metrics = @{}
+    [hashtable]$Metrics = @{}
 )
 
 Set-StrictMode -Version 2.0
@@ -38,4 +38,4 @@ finally {
     $Metrics['WorkerSeconds'] = $clock.Elapsed.TotalSeconds
 }
 
-[pscustomobject] $Metrics
+[pscustomobject]$Metrics

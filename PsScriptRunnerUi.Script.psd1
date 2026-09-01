@@ -1,4 +1,4 @@
-@{
+﻿@{
     RootModule        = 'PsScriptRunnerUi.Script.psm1'
     ModuleVersion     = '0.2.0'
     GUID              = 'dc30fa6a-dd64-4298-b8ca-552c3ed360cb'

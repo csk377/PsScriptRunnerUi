@@ -1,4 +1,4 @@
-Set-StrictMode -Version 2.0
+﻿Set-StrictMode -Version 2.0
 
 function Get-UiRunnerContext {
     $context = Get-Variable -Name '__UiScriptContext' -Scope Global -ErrorAction SilentlyContinue
@@ -26,9 +26,9 @@ function Assert-ScriptNotCancelled {
 function Request-UserConfirmation {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)] [string] $Message,
-        [string] $Title = 'Confirm',
-        [ValidateSet('Yes', 'No')] [string] $Default = 'No'
+        [Parameter(Mandatory)] [string]$Message,
+        [string]$Title = 'Confirm',
+        [ValidateSet('Yes', 'No')] [string]$Default = 'No'
     )
 
     $context = Get-UiRunnerContext
@@ -50,18 +50,18 @@ function Request-UserConfirmation {
         throw [System.OperationCanceledException]::new('Cancellation was requested before confirmation could be displayed.')
     }
     $response = [hashtable]::Synchronized(@{
-        Completed = $false
-        Result = $false
-        Error = $null
-        Abandoned = $false
-    })
+            Completed = $false
+            Result    = $false
+            Error     = $null
+            Abandoned = $false
+        })
     $context.EventQueue.Enqueue([pscustomobject]@{
-        EventType = 'Confirmation'
-        Title = $Title
-        Message = $Message
-        Default = $Default
-        Response = $response
-    })
+            EventType = 'Confirmation'
+            Title     = $Title
+            Message   = $Message
+            Default   = $Default
+            Response  = $response
+        })
 
     while (-not $response.Completed) {
         if ($context.Cancellation.IsCancellationRequested) {
@@ -75,7 +75,7 @@ function Request-UserConfirmation {
         Start-Sleep -Milliseconds 100
     }
     if ($null -ne $response.Error) { throw $response.Error }
-    return [bool] $response.Result
+    return [bool]$response.Result
 }
 
 Export-ModuleMember -Function Test-ScriptCancellationRequested, Assert-ScriptNotCancelled, Request-UserConfirmation

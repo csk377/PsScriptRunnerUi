@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param()
 
 Set-StrictMode -Version 2.0
@@ -14,7 +14,7 @@ Add-Type -AssemblyName PresentationFramework
 & (Join-Path $PSScriptRoot 'Run-OutputStateTests.ps1')
 
 function Assert-True {
-    param([bool] $Condition, [string] $Message)
+    param([bool]$Condition, [string]$Message)
     if (-not $Condition) { throw $Message }
 }
 
@@ -32,8 +32,8 @@ $owner.Opacity = 0
 $owner.Show()
 $rows = [System.Collections.Generic.List[object]]::new()
 function Invoke-Scenario {
-    param([string] $Mode, [string] $Expected, [string] $CancelAction, [string] $ExpectedMessage, [int] $ExpectedErrors = 0,
-        [string] $OutputLevel = 'None', [switch] $ShowOutput)
+    param([string]$Mode, [string]$Expected, [string]$CancelAction, [string]$ExpectedMessage, [int]$ExpectedErrors = 0,
+        [string]$OutputLevel = 'None', [switch]$ShowOutput)
 
     $metrics = [hashtable]::Synchronized(@{})
     $probe = @{ Sent = $false; TerminalValues = $false; TerminalDetails = 'No completed dialog was observed.' }
@@ -46,35 +46,35 @@ function Invoke-Scenario {
     $observer = [System.Windows.Threading.DispatcherTimer]::new()
     $observer.Interval = [timespan]::FromMilliseconds(20)
     $observer.add_Tick({
-        foreach ($dialog in @($owner.OwnedWindows)) {
-            if ($dialog.FindName('CloseButton').Visibility -ne 'Visible' -and $dialog.FindName('OutputText').Text.Length -gt 0) {
-                $probe.LiveOutput = $true
-            }
-            if ($CancelAction -and -not $probe.Sent -and $clock.ElapsedMilliseconds -ge 150) {
-                $probe.Sent = $true
-                if ($CancelAction -eq 'Close') { $dialog.Close() }
-                else { $dialog.FindName('CancelButton').RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Button]::ClickEvent)) }
-                $probe.CancelDisabled = -not $dialog.FindName('CancelButton').IsEnabled
-            }
-            if ($dialog.FindName('CloseButton').Visibility -eq 'Visible') {
-                $probe.OutputText = $dialog.FindName('OutputText').Text
-                $probe.OutputVisible = $dialog.FindName('OutputPanel').Visibility -eq 'Visible'
-                $probe.Truncated = $dialog.FindName('OutputTruncation').Visibility -eq 'Visible'
-                $probe.TerminalValues = $dialog.FindName('CancelButton').Visibility -eq 'Collapsed' -and
+            foreach ($dialog in @($owner.OwnedWindows)) {
+                if ($dialog.FindName('CloseButton').Visibility -ne 'Visible' -and $dialog.FindName('OutputText').Text.Length -gt 0) {
+                    $probe.LiveOutput = $true
+                }
+                if ($CancelAction -and -not $probe.Sent -and $clock.ElapsedMilliseconds -ge 150) {
+                    $probe.Sent = $true
+                    if ($CancelAction -eq 'Close') { $dialog.Close() }
+                    else { $dialog.FindName('CancelButton').RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Button]::ClickEvent)) }
+                    $probe.CancelDisabled = -not $dialog.FindName('CancelButton').IsEnabled
+                }
+                if ($dialog.FindName('CloseButton').Visibility -eq 'Visible') {
+                    $probe.OutputText = $dialog.FindName('OutputText').Text
+                    $probe.OutputVisible = $dialog.FindName('OutputPanel').Visibility -eq 'Visible'
+                    $probe.Truncated = $dialog.FindName('OutputTruncation').Visibility -eq 'Visible'
+                    $probe.TerminalValues = $dialog.FindName('CancelButton').Visibility -eq 'Collapsed' -and
                     $dialog.FindName('CloseButton').IsEnabled -and
                     $dialog.FindName('OverallActivity').Text -eq $Expected -and
                     (-not $ExpectedMessage -or $dialog.FindName('OverallStatus').Text -ceq $ExpectedMessage)
-                if ($Expected -eq 'CompletedWithErrors') {
-                    $probe.TerminalValues = $probe.TerminalValues -and
+                    if ($Expected -eq 'CompletedWithErrors') {
+                        $probe.TerminalValues = $probe.TerminalValues -and
                         $dialog.FindName('OverallPanel').Background.ToString() -eq '#FFFFF8DB'
-                }
-                $probe.TerminalDetails = 'Message={0}; Cancel={1}; CloseEnabled={2}; Activity={3}' -f `
-                    $dialog.FindName('OverallStatus').Text, $dialog.FindName('CancelButton').Visibility,
+                    }
+                    $probe.TerminalDetails = 'Message={0}; Cancel={1}; CloseEnabled={2}; Activity={3}' -f `
+                        $dialog.FindName('OverallStatus').Text, $dialog.FindName('CancelButton').Visibility,
                     $dialog.FindName('CloseButton').IsEnabled, $dialog.FindName('OverallActivity').Text
-                $dialog.Close()
+                    $dialog.Close()
+                }
             }
-        }
-    })
+        })
     $observer.Start()
     try {
         $result = Invoke-UiScript -FilePath (Join-Path $PSScriptRoot 'Fixtures\Invoke-TestWorkload.ps1') `
@@ -94,15 +94,15 @@ function Invoke-Scenario {
             $rank = [array]::IndexOf(@('None', 'Error', 'Warn', 'Info', 'Verbose', 'Debug'), $OutputLevel)
             $diagnosticsEnabled = $Mode -ne 'SuppressDiagnostics'
             $expectations = @{
-                '[Error] error-stream' = $rank -ge 1
-                '[Warn] warning-stream' = $rank -ge 2
+                '[Error] error-stream'      = $rank -ge 1
+                '[Warn] warning-stream'     = $rank -ge 2
                 '[Info] information-stream' = $rank -ge 3 -and $diagnosticsEnabled
-                '[Info] host-stream' = $rank -ge 3 -and $diagnosticsEnabled
-                '[Verbose] verbose-stream' = $rank -ge 4 -and $diagnosticsEnabled
-                '[Debug] debug-stream' = $rank -ge 5 -and $diagnosticsEnabled
-                'success-stream' = [bool] $ShowOutput
-                'final-success' = [bool] $ShowOutput
-                'final-information' = $rank -ge 3 -and $diagnosticsEnabled
+                '[Info] host-stream'        = $rank -ge 3 -and $diagnosticsEnabled
+                '[Verbose] verbose-stream'  = $rank -ge 4 -and $diagnosticsEnabled
+                '[Debug] debug-stream'      = $rank -ge 5 -and $diagnosticsEnabled
+                'success-stream'            = [bool]$ShowOutput
+                'final-success'             = [bool]$ShowOutput
+                'final-information'         = $rank -ge 3 -and $diagnosticsEnabled
             }
             foreach ($token in $expectations.Keys) {
                 Assert-True ($probe.OutputText.Contains($token) -eq $expectations[$token]) "$Mode / $OutputLevel / ShowOutput=$ShowOutput incorrectly displayed $token."

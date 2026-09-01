@@ -114,9 +114,18 @@ The result panel shows a selectable message: green for success, yellow for cance
 Run from the repository directory in an interactive Windows session. Smoke tests open and close WPF dialogs:
 
 ```powershell
+powershell.exe -NoProfile -Command "Install-Module PSScriptAnalyzer -Scope CurrentUser -RequiredVersion 1.25.0"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\Tests\Run-StaticChecks.ps1'
 powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File '.\Tests\Run-SmokeTests.ps1'
 ```
+
+The static checks require PSScriptAnalyzer and verify that PowerShell files match the repository formatting rules. Apply those rules before committing with:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\Tests\Format-Code.ps1'
+```
+
+Editor whitespace, encoding, and line-ending conventions are defined in `.editorconfig`. PowerShell syntax formatting is defined in `PSScriptAnalyzerSettings.psd1`.
 
 Tests cover progress state, cancellation, errors, cleanup, host output, working directories, and repeated calls. They also verify that automatic close waits for all progress records. To check progress state without WPF or timing dependencies:
 

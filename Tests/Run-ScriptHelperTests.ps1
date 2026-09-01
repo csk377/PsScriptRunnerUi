@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param()
 
 Set-StrictMode -Version 2.0
@@ -8,12 +8,12 @@ Import-Module (Join-Path $moduleRoot 'PsScriptRunnerUi.Script.psd1') -Force
 $module = Get-Module PsScriptRunnerUi.Script
 
 function Assert-True {
-    param([bool] $Condition, [string] $Message)
+    param([bool]$Condition, [string]$Message)
     if (-not $Condition) { throw $Message }
 }
 
 function Set-ConfirmationAnswers {
-    param([string[]] $Answers)
+    param([string[]]$Answers)
     & $module {
         param($Values)
         $script:ConfirmationAnswers = [System.Collections.Generic.Queue[string]]::new()
@@ -41,9 +41,9 @@ $initialState.ImportPSModule([string[]] @((Join-Path $moduleRoot 'PsScriptRunner
 $runspace = [runspacefactory]::CreateRunspace($initialState)
 $cancellation = [System.Threading.CancellationTokenSource]::new()
 $context = [hashtable]::Synchronized(@{
-    Cancellation = $cancellation
-    EventQueue = [System.Collections.Concurrent.ConcurrentQueue[object]]::new()
-})
+        Cancellation = $cancellation
+        EventQueue   = [System.Collections.Concurrent.ConcurrentQueue[object]]::new()
+    })
 $pipeline = $null
 $cancelPipeline = $null
 try {
@@ -51,32 +51,32 @@ try {
     $runspace.SessionStateProxy.SetVariable('__UiScriptContext', $context)
     $pipeline = [powershell]::Create()
     $pipeline.Runspace = $runspace
-    [void] $pipeline.AddScript("Request-UserConfirmation -Message 'GUI protocol' -Title 'Confirm' -Default No")
+    [void]$pipeline.AddScript("Request-UserConfirmation -Message 'GUI protocol' -Title 'Confirm' -Default No")
     $async = $pipeline.BeginInvoke()
     $request = $null
     $deadline = [datetime]::UtcNow.AddSeconds(5)
-    while (-not $context.EventQueue.TryDequeue([ref] $request) -and [datetime]::UtcNow -lt $deadline) {
+    while (-not $context.EventQueue.TryDequeue([ref]$request) -and [datetime]::UtcNow -lt $deadline) {
         Start-Sleep -Milliseconds 10
     }
     Assert-True ($null -ne $request -and $request.EventType -eq 'Confirmation' -and $request.Default -eq 'No') 'The GUI confirmation request was not queued correctly.'
     $request.Response.Result = $true
     $request.Response.Completed = $true
     $output = $pipeline.EndInvoke($async)
-    Assert-True ($output.Count -eq 1 -and [bool] $output[0]) 'The GUI confirmation response was not returned to the script.'
+    Assert-True ($output.Count -eq 1 -and [bool]$output[0]) 'The GUI confirmation response was not returned to the script.'
 
     $cancelPipeline = [powershell]::Create()
     $cancelPipeline.Runspace = $runspace
-    [void] $cancelPipeline.AddScript("Request-UserConfirmation -Message 'Cancellation protocol'")
+    [void]$cancelPipeline.AddScript("Request-UserConfirmation -Message 'Cancellation protocol'")
     $cancelAsync = $cancelPipeline.BeginInvoke()
     $cancelRequest = $null
     $deadline = [datetime]::UtcNow.AddSeconds(5)
-    while (-not $context.EventQueue.TryDequeue([ref] $cancelRequest) -and [datetime]::UtcNow -lt $deadline) {
+    while (-not $context.EventQueue.TryDequeue([ref]$cancelRequest) -and [datetime]::UtcNow -lt $deadline) {
         Start-Sleep -Milliseconds 10
     }
     Assert-True ($null -ne $cancelRequest) 'The cancellation confirmation request was not queued.'
     $cancellation.Cancel()
     $cancelError = $null
-    try { [void] $cancelPipeline.EndInvoke($cancelAsync) }
+    try { [void]$cancelPipeline.EndInvoke($cancelAsync) }
     catch { $cancelError = $_ }
     Assert-True ($null -ne $cancelError -and $cancelRequest.Response.Abandoned) 'Cancellation must abandon a waiting confirmation and terminate its invocation.'
 }

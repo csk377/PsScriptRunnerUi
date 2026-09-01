@@ -1,4 +1,4 @@
-Set-StrictMode -Version 2.0
+﻿Set-StrictMode -Version 2.0
 
 function Update-ProgressControls {
     param($ProgressControls, $Record)
@@ -10,7 +10,7 @@ function Update-ProgressControls {
 }
 
 function Show-ScriptOutcome {
-    param($Controls, [string] $Status, [string] $Message)
+    param($Controls, [string]$Status, [string]$Message)
 
     $Controls.CancelButton.Visibility = 'Collapsed'
     $Controls.CloseButton.Visibility = 'Visible'
@@ -38,7 +38,7 @@ function Show-ScriptOutcome {
 }
 
 function New-ScriptOutcome {
-    param($Pipeline, $Context, $EndError, $ErrorRecords, [timespan] $Duration, [long] $ProgressRecordsRead)
+    param($Pipeline, $Context, $EndError, $ErrorRecords, [timespan]$Duration, [long]$ProgressRecordsRead)
 
     # Terminating errors can be reported only by EndInvoke, not by the error stream.
     # Prefer the original record over the method-call wrapper created by EndInvoke.
@@ -67,12 +67,12 @@ function New-ScriptOutcome {
     }
 
     $errorRecord = if ($null -ne $terminatingError) { $terminatingError }
-        elseif ($ErrorRecords.Count -gt 0) { $ErrorRecords[0] } else { $null }
+    elseif ($ErrorRecords.Count -gt 0) { $ErrorRecords[0] } else { $null }
     $status = if ($null -ne $terminatingError) { 'Failed' }
-        elseif ($Context.Cancelled -and $ErrorRecords.Count -gt 0) { 'Failed' }
-        elseif ($Context.Cancelled) { 'Cancelled' }
-        elseif ($ErrorRecords.Count -gt 0) { 'CompletedWithErrors' }
-        else { 'Completed' }
+    elseif ($Context.Cancelled -and $ErrorRecords.Count -gt 0) { 'Failed' }
+    elseif ($Context.Cancelled) { 'Cancelled' }
+    elseif ($ErrorRecords.Count -gt 0) { 'CompletedWithErrors' }
+    else { 'Completed' }
     $cancellationWasRequested = $Context.Cancellation.IsCancellationRequested
     $message = switch ($status) {
         'Completed' {
@@ -90,19 +90,20 @@ function New-ScriptOutcome {
             if ($null -ne $errorRecord.ErrorDetails -and
                 -not [string]::IsNullOrWhiteSpace($errorRecord.ErrorDetails.Message)) {
                 $errorRecord.ErrorDetails.Message
-            } else { $exception.Message }
+            }
+            else { $exception.Message }
         }
     }
 
     [pscustomobject]@{
-        Result = [pscustomobject]@{
-            Status = $status
-            Duration = $Duration
+        Result  = [pscustomobject]@{
+            Status                   = $status
+            Duration                 = $Duration
             CancellationWasRequested = $cancellationWasRequested
-            ErrorRecord = $errorRecord
-            ErrorRecords = $ErrorRecords.ToArray()
-            ErrorCount = $ErrorRecords.Count
-            ProgressRecordsRead = $ProgressRecordsRead
+            ErrorRecord              = $errorRecord
+            ErrorRecords             = $ErrorRecords.ToArray()
+            ErrorCount               = $ErrorRecords.Count
+            ProgressRecordsRead      = $ProgressRecordsRead
         }
         Message = $message
     }
@@ -122,7 +123,7 @@ function Update-ScriptProgressState {
         }
         else {
             $State.Progress[$record.ActivityId] = @{
-                Record = $record
+                Record   = $record
                 Sequence = $State.ProgressRecordsRead + $i
             }
         }
@@ -131,21 +132,21 @@ function Update-ScriptProgressState {
 }
 
 function New-ScriptOutputState {
-    param([string] $OutputLevel = 'None', [bool] $ShowOutput = $false)
+    param([string]$OutputLevel = 'None', [bool]$ShowOutput = $false)
 
     @{
-        Level = (@{ None = 0; Error = 1; Warn = 2; Info = 3; Verbose = 4; Debug = 5 })[$OutputLevel]
-        ShowOutput = $ShowOutput
-        Buffer = [System.Management.Automation.PSDataCollection[psobject]]::new()
-        Text = [System.Text.StringBuilder]::new()
+        Level         = (@{ None = 0; Error = 1; Warn = 2; Info = 3; Verbose = 4; Debug = 5 })[$OutputLevel]
+        ShowOutput    = $ShowOutput
+        Buffer        = [System.Management.Automation.PSDataCollection[psobject]]::new()
+        Text          = [System.Text.StringBuilder]::new()
         MaxCharacters = 65536
-        Truncated = $false
-        Changed = $false
+        Truncated     = $false
+        Changed       = $false
     }
 }
 
 function Add-ScriptOutput {
-    param($OutputState, [string] $Stream, $Record)
+    param($OutputState, [string]$Stream, $Record)
 
     # Only called for visible records. Formatting must not turn script data into a UI fault.
     try {
@@ -154,7 +155,7 @@ function Add-ScriptOutput {
                 if ($Record -is [string]) { $Record }
                 else { ($Record | Out-String -Width 160 -ErrorAction Stop).TrimEnd() }
             }
-            'Info' { [string] $Record.MessageData }
+            'Info' { [string]$Record.MessageData }
             'Error' {
                 if ($null -ne $Record.ErrorDetails -and -not [string]::IsNullOrWhiteSpace($Record.ErrorDetails.Message)) {
                     $Record.ErrorDetails.Message
@@ -173,15 +174,15 @@ function Add-ScriptOutput {
     }
     $excess = $OutputState.Text.Length + $line.Length - $OutputState.MaxCharacters
     if ($excess -gt 0) {
-        [void] $OutputState.Text.Remove(0, $excess)
+        [void]$OutputState.Text.Remove(0, $excess)
         $OutputState.Truncated = $true
     }
-    [void] $OutputState.Text.Append($line)
+    [void]$OutputState.Text.Append($line)
     $OutputState.Changed = $true
 }
 
 function Receive-ScriptOutputStreams {
-    param($Pipeline, $State, [bool] $CaptureHostOutput)
+    param($Pipeline, $State, [bool]$CaptureHostOutput)
 
     foreach ($record in $Pipeline.Streams.Error.ReadAll()) {
         $State.ErrorRecords.Add($record)
@@ -190,16 +191,16 @@ function Receive-ScriptOutputStreams {
     if ($State.Output.Level -ge 3 -or $CaptureHostOutput) {
         foreach ($record in $Pipeline.Streams.Information.ReadAll()) {
             if ($State.Output.Level -ge 3) { Add-ScriptOutput $State.Output 'Info' $record }
-            if ($CaptureHostOutput) { Write-Host ([string] $record.MessageData) }
+            if ($CaptureHostOutput) { Write-Host ([string]$record.MessageData) }
         }
     }
     else { $Pipeline.Streams.Information.Clear() }
 
     foreach ($stream in @(
-        @{ Buffer = $Pipeline.Streams.Warning; Level = 2; Label = 'Warn' }
-        @{ Buffer = $Pipeline.Streams.Verbose; Level = 4; Label = 'Verbose' }
-        @{ Buffer = $Pipeline.Streams.Debug; Level = 5; Label = 'Debug' }
-    )) {
+            @{ Buffer = $Pipeline.Streams.Warning; Level = 2; Label = 'Warn' }
+            @{ Buffer = $Pipeline.Streams.Verbose; Level = 4; Label = 'Verbose' }
+            @{ Buffer = $Pipeline.Streams.Debug; Level = 5; Label = 'Debug' }
+        )) {
         if ($State.Output.Level -ge $stream.Level) {
             foreach ($record in $stream.Buffer.ReadAll()) { Add-ScriptOutput $State.Output $stream.Label $record }
         }
@@ -212,7 +213,7 @@ function Receive-ScriptOutputStreams {
 }
 
 function Receive-ScriptProgress {
-    param($Pipeline, $State, [bool] $CaptureHostOutput)
+    param($Pipeline, $State, [bool]$CaptureHostOutput)
 
     $batch = $Pipeline.Streams.Progress.ReadAll()
     if ($batch.Count -gt 0) { Update-ScriptProgressState $State $batch }
@@ -242,7 +243,7 @@ function Get-ScriptProgressSelection {
     $child = $records | Where-Object { $null -ne $parent -and $_.Record.ParentActivityId -eq $parent.Record.ActivityId } | Select-Object -First 1
     [pscustomobject]@{
         Parent = if ($null -ne $parent) { $parent.Record } else { $null }
-        Child = if ($null -ne $child) { $child.Record } else { $null }
+        Child  = if ($null -ne $child) { $child.Record } else { $null }
     }
 }
 
@@ -269,7 +270,7 @@ function Receive-ScriptEvent {
     param($Context, $Window, $Timer)
 
     $request = $null
-    if (-not $Context.EventQueue.TryDequeue([ref] $request)) { return }
+    if (-not $Context.EventQueue.TryDequeue([ref]$request)) { return }
     if ($request.EventType -ne 'Confirmation') {
         throw "Unsupported script event type '$($request.EventType)'."
     }
@@ -291,7 +292,7 @@ function Receive-ScriptEvent {
     try {
         $choice = [System.Windows.MessageBox]::Show($Window, $request.Message, $request.Title,
             [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question,
-            [System.Windows.MessageBoxResult] $request.Default)
+            [System.Windows.MessageBoxResult]$request.Default)
         [System.Threading.Monitor]::Enter($response.SyncRoot)
         try {
             $response.Result = $choice -eq [System.Windows.MessageBoxResult]::Yes
@@ -313,16 +314,16 @@ function Receive-ScriptEvent {
 function Invoke-UiScript {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)] [string] $FilePath,
-        [hashtable] $Parameters = @{},
-        [string] $WorkingDirectory,
+        [Parameter(Mandatory)] [string]$FilePath,
+        [hashtable]$Parameters = @{},
+        [string]$WorkingDirectory,
         $Owner,
-        [switch] $CaptureHostOutput,
-        [switch] $CloseOnSuccess,
-        [string] $HeadingText = 'Run script',
+        [switch]$CaptureHostOutput,
+        [switch]$CloseOnSuccess,
+        [string]$HeadingText = 'Run script',
         [ValidateSet('None', 'Error', 'Warn', 'Info', 'Verbose', 'Debug')]
-        [string] $OutputLevel = 'None',
-        [switch] $ShowOutput
+        [string]$OutputLevel = 'None',
+        [switch]$ShowOutput
     )
 
     if ([System.Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
@@ -346,15 +347,15 @@ function Invoke-UiScript {
     $window.FindName('HeadingText').Text = $HeadingText
     $controls = @{
         Parent = [pscustomobject]@{
-            Panel = $window.FindName('OverallPanel')
+            Panel    = $window.FindName('OverallPanel')
             Activity = $window.FindName('OverallActivity')
-            Status = $window.FindName('OverallStatus')
-            Bar = $window.FindName('OverallProgress')
+            Status   = $window.FindName('OverallStatus')
+            Bar      = $window.FindName('OverallProgress')
         }
-        Child = [pscustomobject]@{
+        Child  = [pscustomobject]@{
             Activity = $window.FindName('ChildActivity')
-            Status = $window.FindName('ChildStatus')
-            Bar = $window.FindName('ChildProgress')
+            Status   = $window.FindName('ChildStatus')
+            Bar      = $window.FindName('ChildProgress')
         }
     }
     foreach ($name in @('ChildPanel', 'CancelButton', 'CloseButton', 'OutputPanel', 'OutputText', 'OutputTruncation')) {
@@ -364,15 +365,15 @@ function Invoke-UiScript {
 
     $cancellation = [System.Threading.CancellationTokenSource]::new()
     $context = [hashtable]::Synchronized(@{
-        Cancellation = $cancellation
-        Cancelled = $false
-        EventQueue = [System.Collections.Concurrent.ConcurrentQueue[object]]::new()
-    })
+            Cancellation = $cancellation
+            Cancelled    = $false
+            EventQueue   = [System.Collections.Concurrent.ConcurrentQueue[object]]::new()
+        })
     # All state below belongs to the UI thread; only context is shared with the worker.
     $state = @{
         Progress = @{}; ProgressRecordsRead = 0L; Result = $null; Ended = $false; Fault = $null
         ErrorRecords = [System.Collections.Generic.List[System.Management.Automation.ErrorRecord]]::new()
-        Output = New-ScriptOutputState $OutputLevel ([bool] $ShowOutput)
+        Output       = New-ScriptOutputState $OutputLevel ([bool]$ShowOutput)
     }
     $runspace = $null
     $pipeline = $null
@@ -389,12 +390,12 @@ function Invoke-UiScript {
     $controls.CancelButton.add_Click({ & $cancel })
     $controls.CloseButton.add_Click({ $window.Close() })
     $window.add_Closing({
-        param($closingWindow, $closingEventArgs)
-        if ($null -eq $state.Result -and $null -eq $state.Fault) {
-            $closingEventArgs.Cancel = $true
-            & $cancel
-        }
-    })
+            param($closingWindow, $closingEventArgs)
+            if ($null -eq $state.Result -and $null -eq $state.Fault) {
+                $closingEventArgs.Cancel = $true
+                & $cancel
+            }
+        })
 
     try {
         $initialState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
@@ -410,15 +411,15 @@ function Invoke-UiScript {
         }
         $pipeline = [powershell]::Create()
         $pipeline.Runspace = $runspace
-        [void] $pipeline.AddScript({
-            param($Path, $Arguments, $Directory)
-            Set-Location -LiteralPath $Directory -ErrorAction Stop
-            try { & $Path @Arguments }
-            catch [System.OperationCanceledException] {
-                if (-not $global:__UiScriptContext.Cancellation.IsCancellationRequested) { throw }
-                $global:__UiScriptContext.Cancelled = $true
-            }
-        }.ToString()).AddArgument($scriptFile.FullName).AddArgument($Parameters).AddArgument($directory.FullName)
+        [void]$pipeline.AddScript({
+                param($Path, $Arguments, $Directory)
+                Set-Location -LiteralPath $Directory -ErrorAction Stop
+                try { & $Path @Arguments }
+                catch [System.OperationCanceledException] {
+                    if (-not $global:__UiScriptContext.Cancellation.IsCancellationRequested) { throw }
+                    $global:__UiScriptContext.Cancelled = $true
+                }
+            }.ToString()).AddArgument($scriptFile.FullName).AddArgument($Parameters).AddArgument($directory.FullName)
 
         $clock = [System.Diagnostics.Stopwatch]::StartNew()
         # A completed input buffer allows a script with no pipeline input to finish.
@@ -426,48 +427,48 @@ function Invoke-UiScript {
         $inputBuffer.Complete()
         $async = $pipeline.BeginInvoke($inputBuffer, $state.Output.Buffer)
         $timer.add_Tick({
-            try {
-                $completed = $async.IsCompleted
-                $endError = $null
-                if ($completed) {
-                    $state.Ended = $true
-                    try { [void] $pipeline.EndInvoke($async) }
-                    catch { $endError = $_ }
-                }
-                $progressChanged = Receive-ScriptProgress $pipeline $state ([bool] $CaptureHostOutput)
-                if (-not $completed) {
-                    if ($progressChanged) { Update-ScriptProgressDisplay $state $controls }
-                    Update-ScriptOutputDisplay $state.Output $controls
-                    Receive-ScriptEvent $context $window $timer
-                    return
-                }
-
-                $timer.Stop()
-                $clock.Stop()
-                $streamErrorCount = $state.ErrorRecords.Count
-                $outcome = New-ScriptOutcome -Pipeline $pipeline -Context $context -EndError $endError `
-                    -ErrorRecords $state.ErrorRecords `
-                    -Duration $clock.Elapsed -ProgressRecordsRead $state.ProgressRecordsRead
-                $state.Result = $outcome.Result
-                if ($state.Output.Level -ge 1) {
-                    for ($i = $streamErrorCount; $i -lt $state.ErrorRecords.Count; $i++) {
-                        Add-ScriptOutput $state.Output 'Error' $state.ErrorRecords[$i]
+                try {
+                    $completed = $async.IsCompleted
+                    $endError = $null
+                    if ($completed) {
+                        $state.Ended = $true
+                        try { [void]$pipeline.EndInvoke($async) }
+                        catch { $endError = $_ }
                     }
+                    $progressChanged = Receive-ScriptProgress $pipeline $state ([bool]$CaptureHostOutput)
+                    if (-not $completed) {
+                        if ($progressChanged) { Update-ScriptProgressDisplay $state $controls }
+                        Update-ScriptOutputDisplay $state.Output $controls
+                        Receive-ScriptEvent $context $window $timer
+                        return
+                    }
+
+                    $timer.Stop()
+                    $clock.Stop()
+                    $streamErrorCount = $state.ErrorRecords.Count
+                    $outcome = New-ScriptOutcome -Pipeline $pipeline -Context $context -EndError $endError `
+                        -ErrorRecords $state.ErrorRecords `
+                        -Duration $clock.Elapsed -ProgressRecordsRead $state.ProgressRecordsRead
+                    $state.Result = $outcome.Result
+                    if ($state.Output.Level -ge 1) {
+                        for ($i = $streamErrorCount; $i -lt $state.ErrorRecords.Count; $i++) {
+                            Add-ScriptOutput $state.Output 'Error' $state.ErrorRecords[$i]
+                        }
+                    }
+                    Update-ScriptOutputDisplay $state.Output $controls
+                    Show-ScriptOutcome $controls $state.Result.Status $outcome.Message
+                    if ($state.Result.Status -eq 'Completed' -and $CloseOnSuccess) { $window.Close() }
                 }
-                Update-ScriptOutputDisplay $state.Output $controls
-                Show-ScriptOutcome $controls $state.Result.Status $outcome.Message
-                if ($state.Result.Status -eq 'Completed' -and $CloseOnSuccess) { $window.Close() }
-            }
-            catch {
-                # Stop dispatching a broken UI callback; the finally block waits for cooperative cleanup.
-                $state.Fault = $_
-                $timer.Stop()
-                $cancellation.Cancel()
-                $window.Close()
-            }
-        })
+                catch {
+                    # Stop dispatching a broken UI callback; the finally block waits for cooperative cleanup.
+                    $state.Fault = $_
+                    $timer.Stop()
+                    $cancellation.Cancel()
+                    $window.Close()
+                }
+            })
         $timer.Start()
-        [void] $window.ShowDialog()
+        [void]$window.ShowDialog()
         if ($null -ne $state.Fault) { throw $state.Fault }
         return $state.Result
     }
@@ -481,9 +482,9 @@ function Invoke-UiScript {
             while (-not $async.IsCompleted) {
                 $pipeline.Streams.Progress.Clear()
                 Receive-ScriptOutputStreams $pipeline $state $false
-                [void] $async.AsyncWaitHandle.WaitOne(75)
+                [void]$async.AsyncWaitHandle.WaitOne(75)
             }
-            try { [void] $pipeline.EndInvoke($async) } catch { }
+            try { [void]$pipeline.EndInvoke($async) } catch { }
             $pipeline.Streams.Progress.Clear()
             Receive-ScriptOutputStreams $pipeline $state $false
         }
